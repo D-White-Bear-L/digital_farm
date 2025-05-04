@@ -437,6 +437,12 @@
   position: absolute;
   top: 20px;
   left: 20px;
+  width: 320px;
+  background: rgba(20, 40, 70, 0.92);
+  border-radius: 12px;
+  box-shadow: 0 2px 16px 0 rgba(0,0,0,0.18);
+  color: #fff;
+  transition: width 0.3s, height 0.3s, background 0.3s;
   z-index: 100;
   background: rgba(10, 39, 64, 0.8);
   border: 1px solid rgba(0, 234, 255, 0.7);
@@ -450,8 +456,7 @@
 }
 
 .monitoring-panel.collapsed {
-  transform: scale(0.2);
-  opacity: 0.5;
+  opacity: 0.8;
 }
 
 .monitoring-header {
@@ -731,4 +736,38 @@
   .digital-twin-controls {
     top: 120px;
   }
+}
+
+.devices-manage-panel {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1002;
+  max-width: 700px;
+  width: 90vw;
+  min-width: 380px;
+  max-height: 70vh;
+  overflow: auto;      /* 新增：内容超出时滚动 */
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  padding: 24px 24px 18px 24px;
+  /* 可根据需要微调padding和宽度 */
+}
+
+
+
+.devices-manage-toggle {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  z-index: 1001;
+  background: #00eaff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  cursor: pointer;
+  font-size: 16px;
 }

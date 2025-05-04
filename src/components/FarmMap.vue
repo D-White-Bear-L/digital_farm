@@ -64,6 +64,26 @@
     
     <!-- 区域边界 -->
     <div class="area-boundary"></div>
+
+    <!-- 只在未打开设备管理面板时显示“设备管理”按钮 -->
+    <button
+      v-if="!showDevicesManage"
+      class="devices-manage-toggle"
+      @click="showDevicesManage = true"
+    >
+      设备管理
+    </button>
+
+    <!-- 设备管理面板（可显示/隐藏）-->
+    <DevicesManage
+      v-show="showDevicesManage"
+      :devices="devices"
+      @add-device="addDevice"
+      @update-device="updateDevice"
+      @delete-device="deleteDevice"
+      @close="showDevicesManage = false"
+      class="devices-manage-panel"
+    />
   </div>
 </template>
 
@@ -72,14 +92,16 @@
 import AMapLoader from '@amap/amap-jsapi-loader';
 import './FarmMap.css'; // 引入外部CSS文件
 import { farms, getDefaultFarm } from '../data/farms.js'; // 引入农场数据
+import DevicesManage from './DevicesManage.vue'; // 新增
 
 export default {
   name: 'FarmMap',
+  components: {DevicesManage},
   props: {
     farmId: {
       type: Number,
       default: 1 // 默认显示第一个农场
-    }
+    },
   },
   data() {
     return {
@@ -88,9 +110,13 @@ export default {
       currentFarm: null,
       markers: [],
       markerObjs: [],
-      markerZoomThreshold: 16, // 你可以根据实际体验调整
+      markerZoomThreshold: 16, // 标记的缩放阈值
       selectedFarmId: this.farmId, // 添加选中的农场ID
       farms: farms, // 将农场数据添加到组件中
+
+      farmMarkerZoomThreshold: 12, // 农场标记的缩放阈值
+      farmMarkerObj: null, // 农场标记的对象
+      boundaryPolygon: null, // 区域边界的多边形对象
       
       // 数字孪生相关数据
       activeLayer: null,
@@ -103,17 +129,6 @@ export default {
       deviceStatus: '正常',
       irrigationStatus: '关闭',
       lastUpdate: '刚刚',
-      
-      // 时间轴相关
-      showTimeline: false,
-      timelinePosition: 0,
-      isTimelinePlaying: false,
-      timelineInterval: null,
-      currentTimelineDate: '2023-06-01 08:00',
-      
-      // 天气效果
-      weatherEffect: '',
-      showWeatherEffect: false,
       
       // 设备状态
       devices: [
@@ -145,6 +160,8 @@ export default {
       immediate: true
     }
   },
+
+  
   mounted() {
     // 使用 setTimeout 确保 DOM 完全渲染
     setTimeout(() => {
@@ -164,7 +181,42 @@ export default {
     }
   },
   methods: {
-    // 添加农场切换方法
+  
+  addFarmMarker() {
+    if (!this.map || !this.AMap || !this.currentFarm) return;
+    if (this.farmMarkerObj) {
+      this.map.remove(this.farmMarkerObj);
+      this.farmMarkerObj = null;
+    }
+    const markerContent = document.createElement('div');
+    markerContent.className = 'farm-center-marker';
+    markerContent.innerHTML = `<div class="farm-marker-icon">🏠</div>`;
+    this.farmMarkerObj = new this.AMap.Marker({
+      position: this.currentFarm.center,
+      content: markerContent,
+      anchor: 'center',
+      zIndex: 200
+    });
+    this.farmMarkerObj.on('click', () => {
+      this.map.setZoomAndCenter(15, this.currentFarm.center, true);
+    });
+    this.map.add(this.farmMarkerObj);
+    this.updateFarmMarkerVisibility();
+  },
+  updateFarmMarkerVisibility() {
+    if (!this.map || !this.farmMarkerObj) return;
+    const zoom = this.map.getZoom();
+    if (zoom < this.farmMarkerZoomThreshold) {
+      this.farmMarkerObj.show();
+      // 隐藏边界
+      if (this.boundaryPolygon) this.boundaryPolygon.hide();
+    } else {
+      this.farmMarkerObj.hide();
+      // 显示边界
+      if (this.boundaryPolygon) this.boundaryPolygon.show();
+    }
+  },
+    // 农场切换
     changeFarm() {
       // 触发事件通知父组件
       this.$emit('update:farmId', this.selectedFarmId);
@@ -180,6 +232,8 @@ export default {
         this.updateHeatmapVisibility();
         // 移动到新农场中心并调整缩放级别
         this.map.setZoomAndCenter(14, this.currentFarm.center, true);
+        this.addFarmMarker();
+        this.updateFarmMarkerVisibility();
       }
     },
     
@@ -199,6 +253,9 @@ export default {
       
       this.addHeatmap();
       this.updateHeatmapVisibility();
+      this.addFarmMarker();
+      this.addBoundary();
+      this.updateFarmMarkerVisibility();
     },
     
     toggleMonitoring() {
@@ -212,13 +269,13 @@ export default {
         key: '4f5e2e1c9c8b3a7d6f0e2d1c4b7a9e8d',
         version: '2.0',
         plugins: [
-          'AMap.ToolBar',
-          'AMap.Scale',
-          'AMap.HawkEye',
-          'AMap.MapType',
-          'AMap.Geolocation',
+          'AMap.ToolBar',// 工具栏
+          'AMap.Scale',// 比例尺
+          'AMap.HawkEye', // 实时定位
+          'AMap.MapType', // 3D地图
+          'AMap.Geolocation', // 地理位置
           'AMap.ControlBar',  // 3D控制插件
-          'AMap.HeatMap'      // 添加热力图插件
+          'AMap.HeatMap',      // 添加热力图插件
         ],
         AMapUI: {
           version: '1.1',
@@ -238,11 +295,11 @@ export default {
         
         try {
           this.map = new this.AMap.Map(this.$refs.mapContainer, {
-            pitch: 60, // 增加俯仰角度，使地图更有立体感
+            pitch: 45, // 增加俯仰角度，使地图更有立体感
             viewMode: '3D', // 地图模式
             rotateEnable: true, // 是否开启地图旋转交互
             pitchEnable: true, // 是否开启地图倾斜交互
-            zoom: 14, // 调整缩放级别
+            zoom: 25, // 调整缩放级别
             rotation: -15, // 初始地图顺时针旋转的角度
             zooms: [2, 20], // 地图显示的缩放级别范围
             center: this.currentFarm.center, // 使用当前农场中心
@@ -294,6 +351,13 @@ export default {
           
           // 添加热力图效果
           this.addHeatmap();
+
+          this.addFarmMarker();
+          // 绑定地图缩放事件，动态切换农场中心点和边界显示
+          this.map.on('zoomchange', () => {
+            this.updateMarkerVisibility();
+            this.updateFarmMarkerVisibility(); // 新增
+          });
           
           // 添加地图点击事件，显示监控面板
           this.map.on('click', () => {
@@ -381,8 +445,11 @@ export default {
         this.markerObjs.push(markerObj);
       });
       
-      // 添加地图缩放事件，以便调整标记大小
-      this.map.on('zoomchange', this.updateMarkerVisibility);
+      // 绑定地图缩放事件，动态切换农场中心点和边界显示
+      this.map.on('zoomchange', () => {
+        this.updateMarkerVisibility();
+        this.updateFarmMarkerVisibility(); // 新增
+      });
       this.updateMarkerVisibility();
     },
     
@@ -512,9 +579,9 @@ export default {
     addHeatmap(type = 'soil') {
       if (!this.map || !this.AMap || !this.currentFarm) return;
       
-      // 清除现有热力图
+      // 切换农场前，彻底销毁旧热力图
       if (this.heatmap) {
-        this.map.remove(this.heatmap);
+        this.heatmap.setMap(null);
         this.heatmap = null;
       }
       
