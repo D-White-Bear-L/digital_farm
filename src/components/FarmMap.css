@@ -1,0 +1,734 @@
+.farm-map-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 234, 255, 0.5);
+  background: rgba(10, 39, 64, 0.4);
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #0a2740;
+}
+
+/* 自定义标记样式 */
+.custom-marker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.marker-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #00eaff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(0, 234, 255, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  z-index: 2;
+  font-size: 18px;
+}
+
+/* 添加缩放响应样式 */
+.zoom-level-low .marker-icon {
+  transform: scale(0.7);
+  opacity: 0.7;
+}
+
+.zoom-level-low .marker-label {
+  display: none;
+}
+
+.zoom-level-medium .marker-icon {
+  transform: scale(0.85);
+  opacity: 0.85;
+}
+
+.zoom-level-high .marker-icon {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* 热力图缩放响应 */
+.heatmap-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.zoom-level-low .heatmap-container {
+  opacity: 0.4;
+}
+
+.zoom-level-medium .heatmap-container {
+  opacity: 0.7;
+}
+
+.zoom-level-high .heatmap-container {
+  opacity: 1;
+}
+
+.marker-icon:hover {
+  transform: scale(1.2) !important;
+  box-shadow: 0 0 15px rgba(0, 234, 255, 1);
+}
+
+.marker-label {
+  background-color: rgba(10, 39, 64, 0.8);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-top: 5px;
+  white-space: nowrap;
+  border: 1px solid rgba(0, 234, 255, 0.5);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+/* 信息窗口样式 */
+.info-window {
+  padding: 10px;
+  max-width: 300px;
+  background-color: rgba(10, 39, 64, 0.9) !important;
+  border: 1px solid rgba(0, 234, 255, 0.7) !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+}
+
+.info-window h3 {
+  color: #00eaff;
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  border-bottom: 1px solid rgba(0, 234, 255, 0.3);
+  padding-bottom: 5px;
+}
+
+.info-window p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.info-data {
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-data-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.info-data-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.info-data-value {
+  color: #00eaff;
+  font-weight: bold;
+}
+
+.info-buttons {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.info-buttons button {
+  background-color: rgba(0, 234, 255, 0.2);
+  border: 1px solid rgba(0, 234, 255, 0.7);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.info-buttons button:hover {
+  background-color: rgba(0, 234, 255, 0.4);
+}
+
+/* 确保信息窗口在高德地图中正确显示 */
+.amap-info-content {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.amap-info-close {
+  color: #00eaff !important;
+  background-color: rgba(10, 39, 64, 0.8) !important;
+  border-radius: 50% !important;
+  top: 5px !important;
+  right: 5px !important;
+}
+
+.amap-info-sharp {
+  background-color: rgba(10, 39, 64, 0.9) !important;
+}
+
+.custom-marker:hover {
+  background: rgba(0, 234, 255, 0.3);
+  box-shadow: 0 0 8px rgba(0, 234, 255, 0.8);
+  transform: translateY(-2px);
+}
+
+.marker-icon-custom {
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle, #00eaff 60%, #0a2740 100%);
+  border-radius: 50%;
+  margin: 0 auto 2px auto;
+  box-shadow: 0 0 8px #00eaff;
+  animation: pulse 2s infinite;
+}
+
+.marker-label-custom {
+  margin-top: 3px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: white;
+  white-space: nowrap;
+  font-weight: bold;
+  background: rgba(0, 234, 255, 0.15) !important;
+  border: 1px solid #00eaff !important;
+  color: #fff !important;
+  border-radius: 4px !important;
+  text-shadow: 0 0 3px rgba(0, 234, 255, 0.3) !important;
+}
+
+/* 信息窗口样式 */
+.info-window {
+  padding: 10px;
+  background-color: rgba(10, 39, 64, 0.9);
+  border: 1px solid #00ffff;
+  color: white;
+  border-radius: 5px;
+  max-width: 250px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.info-window h3 {
+  margin: 0 0 5px 0;
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 234, 255, 0.5);
+}
+
+.info-window p {
+  margin: 3px 0;
+  font-size: 12px;
+}
+
+.info-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  gap: 5px;
+}
+
+.info-buttons button {
+  background: linear-gradient(90deg, rgba(0, 150, 199, 0.7) 0%, rgba(0, 200, 255, 0.7) 100%);
+  border: none;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.info-buttons button:hover {
+  background: linear-gradient(90deg, rgba(0, 200, 255, 0.9) 0%, rgba(0, 150, 199, 0.9) 100%);
+  box-shadow: 0 0 5px rgba(0, 234, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(0, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0);
+  }
+}
+
+/* 自定义高德地图控件样式 */
+:deep(.amap-control) {
+  border-radius: 4px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  background: rgba(10, 39, 64, 0.7) !important;
+}
+
+:deep(.amap-scale-text) {
+  border-color: #00ffff;
+  color: #ffffff;
+  background-color: rgba(10, 39, 64, 0.7);
+}
+
+.amap-marker-label {
+  background: rgba(0, 234, 255, 0.15) !important;
+  border: 1px solid #00eaff !important;
+  color: #fff !important;
+  border-radius: 4px !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 3px rgba(0, 234, 255, 0.3) !important;
+  padding: 2px 5px !important;
+  font-size: 12px !important;
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 900px) {
+  .custom-marker {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+  
+  .marker-icon-custom {
+    width: 10px;
+    height: 10px;
+  }
+  
+  .info-window {
+    max-width: 200px;
+  }
+  
+  .info-window h3 {
+    font-size: 12px;
+  }
+  
+  .info-window p {
+    font-size: 10px;
+  }
+  
+  .info-buttons button {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
+
+/* 添加农场选择下拉列表样式 */
+.farm-selector {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+}
+
+.farm-dropdown {
+  background: rgba(10, 39, 64, 0.8);
+  border: 1px solid rgba(0, 234, 255, 0.7);
+  color: #fff;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  width: 200px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="6" viewBox="0 0 12 6"><path fill="%2300eaff" d="M0 0l6 6 6-6z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 30px;
+}
+
+.farm-dropdown:hover {
+  background-color: rgba(10, 39, 64, 0.9);
+  border-color: rgba(0, 234, 255, 1);
+  box-shadow: 0 0 15px rgba(0, 234, 255, 0.3);
+}
+
+.farm-dropdown:focus {
+  border-color: rgba(0, 234, 255, 1);
+  box-shadow: 0 0 15px rgba(0, 234, 255, 0.5);
+}
+
+.farm-dropdown option {
+  background-color: rgba(10, 39, 64, 0.9);
+  color: #fff;
+  padding: 8px;
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 768px) {
+  .farm-dropdown {
+    width: 150px;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+
+/* 添加数字孪生控制面板 */
+.digital-twin-controls {
+  position: absolute;
+  right: 10px;
+  top: 70px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(10, 39, 64, 0.8);
+  border: 1px solid rgba(0, 234, 255, 0.7);
+  color: #00eaff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.control-btn:hover {
+  background: rgba(10, 39, 64, 0.9);
+  border-color: rgba(0, 234, 255, 1);
+  box-shadow: 0 0 15px rgba(0, 234, 255, 0.5);
+  transform: scale(1.1);
+}
+
+.control-btn i {
+  font-size: 18px;
+}
+
+/* 实时数据监控面板 */
+.monitoring-panel {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  background: rgba(10, 39, 64, 0.8);
+  border: 1px solid rgba(0, 234, 255, 0.7);
+  border-radius: 8px;
+  padding: 10px;
+  width: 180px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  transform-origin: bottom left;
+  transform: scale(1);
+}
+
+.monitoring-panel.collapsed {
+  transform: scale(0.2);
+  opacity: 0.5;
+}
+
+.monitoring-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 234, 255, 0.3);
+  padding-bottom: 5px;
+}
+
+.monitoring-title {
+  color: #00eaff;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: #00eaff;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+}
+
+.monitoring-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #fff;
+}
+
+.data-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.data-value {
+  color: #00eaff;
+  font-weight: bold;
+}
+
+.data-value.warning {
+  color: #ffcc00;
+}
+
+.data-value.danger {
+  color: #ff4d4d;
+}
+
+/* 农场区域高亮效果 */
+.area-highlight {
+  position: absolute;
+  border: 2px solid rgba(0, 234, 255, 0.7);
+  background: rgba(0, 234, 255, 0.1);
+  border-radius: 4px;
+  pointer-events: none;
+  box-shadow: 0 0 20px rgba(0, 234, 255, 0.3);
+  animation: pulse-area 3s infinite;
+}
+
+@keyframes pulse-area {
+  0% {
+    box-shadow: 0 0 10px rgba(0, 234, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 234, 255, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(0, 234, 255, 0.3);
+  }
+}
+
+/* 实时数据流动效果 */
+.data-flow {
+  position: absolute;
+  width: 2px;
+  background: linear-gradient(to bottom, rgba(0, 234, 255, 0), rgba(0, 234, 255, 1), rgba(0, 234, 255, 0));
+  animation: flow 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes flow {
+  0% {
+    height: 0;
+    opacity: 0;
+  }
+  50% {
+    height: 50px;
+    opacity: 1;
+  }
+  100% {
+    height: 0;
+    opacity: 0;
+    transform: translateY(50px);
+  }
+}
+
+/* 设备状态指示器 */
+.device-status {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #fff;
+  cursor: pointer;
+  z-index: 90;
+  transition: all 0.3s ease;
+}
+
+.device-status:hover {
+  transform: scale(1.2);
+  z-index: 91;
+}
+
+.device-status.normal {
+  background: rgba(0, 200, 83, 0.8);
+  box-shadow: 0 0 10px rgba(0, 200, 83, 0.5);
+}
+
+.device-status.warning {
+  background: rgba(255, 204, 0, 0.8);
+  box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+}
+
+.device-status.error {
+  background: rgba(255, 77, 77, 0.8);
+  box-shadow: 0 0 10px rgba(255, 77, 77, 0.5);
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 天气效果层 */
+.weather-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 80;
+  opacity: 0.4;
+}
+
+.weather-rain {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><g fill="%23ffffff"><rect x="25" width="1" height="7" opacity="0.4"><animate attributeName="opacity" values="0.4;1;0.4" dur="1s" repeatCount="indefinite" /></rect><rect x="30" width="1" height="10" opacity="0.4"><animate attributeName="opacity" values="0.4;1;0.4" dur="1.3s" repeatCount="indefinite" /></rect><rect x="40" width="1" height="12" opacity="0.4"><animate attributeName="opacity" values="0.4;1;0.4" dur="0.8s" repeatCount="indefinite" /></rect><rect x="55" width="1" height="9" opacity="0.4"><animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" repeatCount="indefinite" /></rect><rect x="70" width="1" height="10" opacity="0.4"><animate attributeName="opacity" values="0.4;1;0.4" dur="0.9s" repeatCount="indefinite" /></rect></g></svg>');
+  animation: rain 1s linear infinite;
+}
+
+@keyframes rain {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 100px;
+  }
+}
+
+/* 时间轴控制器 */
+.timeline-control {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  background: rgba(10, 39, 64, 0.8);
+  border: 1px solid rgba(0, 234, 255, 0.7);
+  border-radius: 20px;
+  padding: 10px 15px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.timeline-title {
+  color: #00eaff;
+  font-size: 12px;
+  margin: 0;
+}
+
+.timeline-date {
+  color: #fff;
+  font-size: 12px;
+}
+
+.timeline-slider {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+}
+
+.timeline-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #00eaff, #00ffaa);
+  border-radius: 2px;
+}
+
+.timeline-handle {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+}
+
+.timeline-handle:active {
+  cursor: grabbing;
+}
+
+.timeline-controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 5px;
+}
+
+.timeline-btn {
+  background: none;
+  border: none;
+  color: #00eaff;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.timeline-btn:hover {
+  color: #fff;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .monitoring-panel {
+    width: 220px;
+  }
+  
+  .timeline-control {
+    width: 80%;
+  }
+  
+  .digital-twin-controls {
+    top: 120px;
+  }
+}

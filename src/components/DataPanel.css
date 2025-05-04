@@ -1,0 +1,187 @@
+.data-panel {
+  background: rgba(10, 39, 64, 0.5);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(0, 234, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 16/9; /* 使用固定宽高比而不是固定高度 */
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel-title {
+  color: #00eaff;
+  font-size: 14px;
+  margin: 0 0 5px 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(0, 234, 255, 0.2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: bold;
+  height: 20px;
+  line-height: 20px;
+}
+
+.panel-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+}
+
+.chart-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  flex: 1;
+}
+
+/* 针对不同类型的图表添加图标 */
+.data-panel[data-chart-type="growth"]::after {
+  content: '📈';
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  font-size: 14px;
+  opacity: 0.5;
+}
+
+.data-panel[data-chart-type="soil"]::after {
+  content: '🌱';
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  font-size: 14px;
+  opacity: 0.5;
+}
+
+.data-panel[data-chart-type="weather"]::after {
+  content: '☁️';
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  font-size: 14px;
+  opacity: 0.5;
+}
+
+.data-panel[data-chart-type="equipment"]::after {
+  content: '⚙️';
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  font-size: 14px;
+  opacity: 0.5;
+}
+
+.data-panel[data-chart-type="yield"]::after {
+  content: '🌾';
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  font-size: 14px;
+  opacity: 0.5;
+}
+
+.data-panel[data-chart-type="pest"]::after {
+  content: '🐛';
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  font-size: 14px;
+  opacity: 0.5;
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 1200px) {
+  .panel-title {
+    font-size: 12px;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .data-panel {
+    aspect-ratio: 16/7; /* 在小屏幕上使用更扁平的比例 */
+  }
+}
+
+.placeholder-chart {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 39, 64, 0.7);
+  border-radius: 8px;
+  color: rgba(0, 234, 255, 0.7);
+  font-size: clamp(12px, 1vw, 14px);
+  padding: 1vh;
+  text-align: center;
+  border: 1px dashed rgba(0, 234, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.placeholder-chart::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(0, 234, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 234, 255, 0.05) 1px, transparent 1px);
+  background-size: 10px 10px;
+  pointer-events: none;
+}
+
+/* 为不同类型的图表添加特定样式 */
+.placeholder-chart[data-type="growth"]::before {
+  content: '📈';
+  font-size: 24px;
+  margin-right: 8px;
+}
+
+.placeholder-chart[data-type="soil"]::before {
+  content: '🌱';
+  font-size: 24px;
+  margin-right: 8px;
+}
+
+.placeholder-chart[data-type="weather"]::before {
+  content: '☁️';
+  font-size: 24px;
+  margin-right: 8px;
+}
+
+.placeholder-chart[data-type="equipment"]::before {
+  content: '⚙️';
+  font-size: 24px;
+  margin-right: 8px;
+}
+
+.placeholder-chart[data-type="yield"]::before {
+  content: '🌾';
+  font-size: 24px;
+  margin-right: 8px;
+}
+
+.placeholder-chart[data-type="pest"]::before {
+  content: '🐛';
+  font-size: 24px;
+  margin-right: 8px;
+}
+
+@media screen and (max-width: 768px) {
+  .data-panel {
+    margin-bottom: 2vh;
+  }
+  
+  .placeholder-chart {
+    min-height: 150px;
+  }
+}
