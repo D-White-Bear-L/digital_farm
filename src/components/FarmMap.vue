@@ -549,12 +549,19 @@ export default {
         };
       }
       
+      // radius 建议用较小值，且随 zoom 变化
+      const zoom = this.map.getZoom();
+      let radius = 15;
+      if (zoom <= 12) radius = 10;
+      else if (zoom >= 17) radius = 25;
+      else radius = 10 + (zoom - 12) * 3; // 12~17级线性变化
+      
       // 创建热力图实例
       this.heatmap = new this.AMap.HeatMap(this.map, {
-        radius: 25, // 热力图半径
-        opacity: [0, 0.8], // 热力图透明度
-        gradient: gradient, // 热力图颜色
-        zooms: [12, 20] // 热力图显示的缩放级别范围，小于10级不显示
+        radius: radius,
+        opacity: [0, 0.8],
+        gradient: gradient,
+        zooms: [12, 20]
       });
       
       // 设置热力图数据
@@ -563,11 +570,20 @@ export default {
         max: 100
       });
       
+      // 解绑之前的 zoomchange 事件，避免重复绑定
+      if (this._heatmapZoomHandler) {
+        this.map.off('zoomchange', this._heatmapZoomHandler);
+      }
       // 绑定 zoomchange 事件
-      this.map.on('zoomchange', this.updateHeatmapVisibility);
-
+      this._heatmapZoomHandler = () => {
+        this.updateHeatmapVisibility();
+        this.updateHeatmapRadius();
+      };
+      this.map.on('zoomchange', this._heatmapZoomHandler);
+      
       // 初始化时根据当前缩放级别显示/隐藏热力图
       this.updateHeatmapVisibility();
+      this.updateHeatmapRadius();
     },
     
     updateHeatmapVisibility() {
@@ -578,6 +594,17 @@ export default {
       } else {
         this.heatmap.show();
       }
+    },
+    
+    updateHeatmapRadius() {
+      // 动态调整热力图radius，防止缩小时"山峰"变大
+      if (!this.heatmap || !this.map) return;
+      const zoom = this.map.getZoom();
+      let radius = 15;
+      if (zoom <= 12) radius = 10;
+      else if (zoom >= 17) radius = 25;
+      else radius = 10 + (zoom - 12) * 3;
+      this.heatmap.setOptions({ radius });
     },
     
     showDeviceInfo(device) {
