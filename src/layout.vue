@@ -5,7 +5,7 @@
           <SideBar @collapse-change="handleCollapseChange" />
         </el-aside>
         <el-container class="main-container">
-          <el-header class="header" :style="{ height: headerHeight + 'px' }">
+          <el-header class="header">
             <HeaderBar />
           </el-header>
           <el-main>
@@ -29,7 +29,6 @@ export default {
     },
     setup() {
         const isSidebarCollapsed = ref(false)
-        const headerHeight = ref(64) // 设置头部高度
         
         const sidebarWidth = computed(() => {
             return isSidebarCollapsed.value ? '64px' : '200px'
@@ -42,7 +41,6 @@ export default {
         return {
             isSidebarCollapsed,
             sidebarWidth,
-            headerHeight,
             handleCollapseChange
         }
     }
@@ -70,11 +68,11 @@ export default {
 }
 
 .common-layout.is-collapsed .main-container {
-    width: calc(100% - v-bind(headerHeight + 16) + 'px');
+    width: calc(100% - 64px);
 }
 
 .common-layout .el-header {
-    height: v-bind(headerHeight + 'px');
+    height: 48px;
     border-bottom: 1px solid #dcdfe6;
     box-sizing: border-box;
     background-color: #fff;
@@ -95,9 +93,10 @@ export default {
     overflow-y: auto;  /* 添加垂直滚动 */
     overflow-x: hidden; /* 隐藏水平滚动 */
     padding: 20px;
-    height: calc(100vh - v-bind(headerHeight + 16) + 'px'); /* 设置固定高度，减去header高度和边距 */
+    height: calc(100vh - 64px); /* 设置固定高度，减去header高度 */
 }
 
+/* 移除这个选择器，使用上面的新选择器 */
 /* .common-layout .is-sidebar-collapsed {
     margin-left: 64px;
 } */
