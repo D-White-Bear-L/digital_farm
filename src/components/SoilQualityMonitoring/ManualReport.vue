@@ -57,27 +57,13 @@
             </el-table-column>
         </el-table>
         
-        <!-- 分页 -->
-        <div class="pagination-container">
-            <span class="total-info">共 {{ totalItems }} 条</span>
-            <el-pagination
-                v-model:current-page="currentPage"
-                v-model:page-size="pageSize"
-                :page-sizes="[10, 20, 50, 100]"
-                layout="sizes, prev, pager, next, jumper"
-                :total="totalItems"
-                @size-change="handleSizeChange"
-                @current-change="handleCurrentChange"
-            />
-            <span class="page-info">{{ pageSize }}条/页</span>
-            <el-input
-                v-model="jumpPage"
-                placeholder="跳至"
-                class="jump-input"
-                @keyup.enter="handleJumpPage"
-            />
-            <span>页</span>
-        </div>
+        <!-- 分页  -->
+        <PageBar
+            v-model:page="currentPage"
+            v-model:limit="pageSize"
+            :total="totalItems"
+            @pagination="handlePagination" 
+        />
         
         <!-- 数据上报/编辑对话框 -->
         <el-dialog
@@ -189,13 +175,15 @@
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox} from 'element-plus'
+import PageBar from '@/components/PageBar.vue'
 
 export default {
     name: 'ManualReport',
     components: {
         Search,
-        Plus
+        Plus,
+        PageBar
     },
     setup() {
         // 基地选项
@@ -221,8 +209,14 @@ export default {
         // 分页相关
         const currentPage = ref(1)
         const pageSize = ref(10)
-        const totalItems = ref(11)
-        const jumpPage = ref('')
+        const totalItems = computed(() => filteredReports.value.length)
+        
+        // 分页处理函数
+        const handlePagination = ({page, limit}) => {
+            currentPage.value = page
+            pageSize.value = limit
+            console.log('currentPage:', currentPage.value, 'pageSize:', pageSize.value)
+        }
         
         // 对话框相关
         const dialogVisible = ref(false)
@@ -433,42 +427,9 @@ export default {
             
             return result
         })
-        
-        // 处理分页大小变化
-        const handleSizeChange = (size) => {
-            pageSize.value = size
-            currentPage.value = 1
-        }
-        
-        // 处理当前页变化
-        const handleCurrentChange = (page) => {
-            currentPage.value = page
-        }
-        
-        // 处理页面跳转
-        const handleJumpPage = () => {
-            const page = parseInt(jumpPage.value)
-            if (page && page > 0 && page <= Math.ceil(totalItems.value / pageSize.value)) {
-                currentPage.value = page
-            } else {
-                ElMessage.warning('请输入有效的页码')
-            }
-            jumpPage.value = ''
-        }
-        
-        // 处理添加报告
-        const handleAddReport = () => {
-            dialogType.value = 'add'
-            Object.keys(reportForm).forEach(key => {
-                if (key !== 'id') {
-                    reportForm[key] = key === 'sampleDepth' ? 0 : ''
-                }
-            })
-            dialogVisible.value = true
-        }
-        
-        // 处理编辑
-        const handleEdit = (row) => {
+
+                // 处理编辑
+                const handleEdit = (row) => {
             dialogType.value = 'edit'
             Object.keys(reportForm).forEach(key => {
                 reportForm[key] = row[key]
@@ -496,6 +457,17 @@ export default {
                 ElMessage.success('删除成功')
             }).catch(() => {})
         }
+        // 处理添加报告
+        const handleAddReport = () => {
+            dialogType.value = 'add'
+            Object.keys(reportForm).forEach(key => {
+                if (key !== 'id') {
+                    reportForm[key] = key === 'sampleDepth' ? 0 : ''
+                }
+            })
+            dialogVisible.value = true
+        }
+        
         
         // 提交报告
         const submitReport = () => {
@@ -540,7 +512,6 @@ export default {
             currentPage,
             pageSize,
             totalItems,
-            jumpPage,
             dialogVisible,
             dialogType,
             reportForm,
@@ -548,9 +519,7 @@ export default {
             rules,
             
             // 方法
-            handleSizeChange,
-            handleCurrentChange,
-            handleJumpPage,
+            handlePagination,
             handleAddReport,
             handleEdit,
             handleDelete,
@@ -581,25 +550,7 @@ export default {
     width: 320px;
 }
 
-.pagination-container {
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 10px;
-}
-
-.total-info {
-    margin-right: 10px;
-}
-
-.page-info {
-    margin: 0 10px;
-}
-
-.jump-input {
-    width: 60px;
-}
+/* 移除原有的分页容器样式 */
 
 :deep(.el-table .cell) {
     white-space: nowrap;

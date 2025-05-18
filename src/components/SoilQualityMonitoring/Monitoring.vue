@@ -24,7 +24,7 @@
         </div>
 
         <!-- 监测点列表 -->
-        <el-table :data="filteredMonitoringPoints" style="width: 100%">
+        <el-table :data="paginatedMonitoringPoints" style="width: 100%">
             <el-table-column type="index" label="序号" width="80" />
             <el-table-column prop="area" label="基地" />
             <el-table-column prop="name" label="监测点名称" />
@@ -57,8 +57,8 @@
         <!-- 分页 -->
         <PageBar
             v-model:page="currentPage"
+            v-model:limit="pageSize"
             :total="totalItems"
-            :page-size="pageSize"
             @pagination="handlePagination" 
         />
 
@@ -121,7 +121,7 @@ export default {
         // 分页相关
         const currentPage = ref(1)
         const pageSize = ref(10)
-        const totalItems = ref(0)
+        // const totalItems = ref(0)
 
         // 分页逻辑
         const handlePagination = ({page, limit}) => {
@@ -134,6 +134,18 @@ export default {
         const areas = [
             { label: '测试基地1', value: 'test1' },
             { label: '测试基地2', value: 'test2' },
+            { label: '测试基地3', value: 'test3' },
+            { label: '测试基地4', value: 'test4' },
+            { label: '测试基地5', value: 'test5' },
+            { label: '测试基地6', value: 'test6' },
+            { label: '测试基地7', value: 'test7' },
+            { label: '测试基地8', value: 'test8' },
+            { label: '测试基地9', value: 'test9' },
+            { label: '测试基地10', value: 'test10' },
+            { label: '测试基地11', value: 'test11' },
+            { label: '测试基地12', value: 'test12' },
+            { label: '测试基地13', value: 'test13' },
+            { label: '测试基地14', value: 'test14' },
             // 更多基地选项...
         ]
 
@@ -159,7 +171,87 @@ export default {
                 image: 'https://example.com/image1.jpg',
                 createTime: '2024-03-18 13:36:56'
             },
-            // 更多数据
+            {
+                id: 2,
+                area: '测试基地2',
+                name: '监测点2',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 3,
+                area: '测试基地3',
+                name: '监测点3',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 4,
+                area: '测试基地4',
+                name: '监测点4',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 5,
+                area: '测试基地3',
+                name: '监测点3',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 6,
+                area: '测试基地3',
+                name: '监测点3',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 7,
+                area: '测试基地3',
+                name: '监测点3',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 8,
+                area: '测试基地3',
+                name: '监测点3',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 9,
+                area: '测试基地3',
+                name: '监测点3',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 10,
+                area: '测试基地3',
+                name: '监测点3',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+            {
+                id: 11,
+                area: '测试基地3',
+                name: '监测点3',
+                location: '南区',
+                image: '',
+                createTime: '2024-03-18 13:36:56'
+            },
+
         ])
 
         // 过滤后的监测点列表
@@ -169,6 +261,16 @@ export default {
                 const nameMatch = !searchText.value || point.name.includes(searchText.value)
                 return areaMatch && nameMatch
             })
+        })
+        
+        // 计算总条目数
+        const totalItems = computed(() => filteredMonitoringPoints.value.length)
+        
+        // 分页后的监测点列表
+        const paginatedMonitoringPoints = computed(() => {
+            const startIndex = (currentPage.value - 1) * pageSize.value
+            const endIndex = startIndex + pageSize.value
+            return filteredMonitoringPoints.value.slice(startIndex, endIndex)
         })
 
         // 处理新增监测点
@@ -231,6 +333,7 @@ export default {
             dialogType,
             monitoringPointForm,
             filteredMonitoringPoints,
+            paginatedMonitoringPoints,
             handleAddMonitoringPoint,
             handleEdit,
             handleDelete,

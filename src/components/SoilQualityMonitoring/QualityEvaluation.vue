@@ -50,33 +50,12 @@
         </div>
         
         <!-- 分页 -->
-        <div class="pagination-container">
-            <div class="pagination-info">
-                <span class="total-info">共 {{ totalItems }} 条</span>
-            </div>
-            <div class="pagination-controls">
-                <el-pagination
-                    v-model:current-page="currentPage"
-                    v-model:page-size="pageSize"
-                    :page-sizes="[10, 20, 50, 100]"
-                    layout="sizes, prev, pager, next, jumper"
-                    :total="totalItems"
-                    background
-                    @size-change="handleSizeChange"
-                    @current-change="handleCurrentChange"
-                />
-                <div class="page-jump">
-                    <span class="page-info">{{ pageSize }}条/页</span>
-                    <el-input
-                        v-model="jumpPage"
-                        placeholder="跳至"
-                        class="jump-input"
-                        @keyup.enter="handleJumpPage"
-                    />
-                    <span>页</span>
-                </div>
-            </div>
-        </div>
+        <PageBar
+            v-model:page="currentPage"
+            v-model:limit="pageSize"
+            :total="totalItems"
+            @pagination="handlePagination" 
+        />
         
         <!-- 新增评估对话框 -->
         <el-dialog
@@ -135,12 +114,14 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import PageBar from '@/components/PageBar.vue'
 
 export default {
     name: 'QualityEvaluation',
     components: {
         Search,
-        Plus
+        Plus,
+        PageBar
     },
     setup() { // 在这里定义组件逻辑和数据
         // 基地选项
@@ -167,17 +148,39 @@ export default {
         // 筛选条件
         const selectedArea = ref('')
         const searchText = ref('')
+        const selectedQuality = ref('') // 添加缺失的质量等级筛选变量
         
         // 分页相关
         const currentPage = ref(1)
         const pageSize = ref(10)
-        const totalItems = ref(11)
-        const jumpPage = ref('')
+        const totalItems = computed(() => filteredQuality.value.length)
         
         // 对话框相关
         const dialogVisible = ref(false)
         const evaluationFormRef = ref(null)
         
+        // 过滤后的数据
+        const filteredQuality = computed(() => {
+            let result = evaluations.value
+            
+            // 基地筛选
+            if (selectedArea.value) {
+                result = result.filter(item => item.monitoringPoint.includes(selectedArea.value))
+            }
+            
+            // 监测点名称筛选
+            if (searchText.value) {
+                result = result.filter(item => item.monitoringPoint.includes(searchText.value))
+            }
+            
+            // 耕地质量等级筛选
+            if (selectedQuality.value) {
+                result = result.filter(item => item.qualityLevel === selectedQuality.value)
+            }
+            
+            return result
+        })
+
         // 表单数据
         const evaluationForm = reactive({
             id: '',
@@ -352,27 +355,7 @@ export default {
             return 'danger'
         }
         
-        // 处理分页大小变化
-        const handleSizeChange = (val) => {
-            pageSize.value = val
-            currentPage.value = 1
-        }
-        
-        // 处理当前页变化
-        const handleCurrentChange = (val) => {
-            currentPage.value = val
-        }
-        
-        // 处理页面跳转
-        const handleJumpPage = () => {
-            const page = parseInt(jumpPage.value)
-            if (page && page > 0 && page <= Math.ceil(totalItems.value / pageSize.value)) {
-                currentPage.value = page
-            } else {
-                ElMessage.warning('请输入有效的页码')
-            }
-            jumpPage.value = ''
-        }
+
         
         // 处理新增评估
         const handleAddEvaluation = () => {
@@ -446,16 +429,13 @@ export default {
             currentPage,
             pageSize,
             totalItems,
-            jumpPage,
+            // 移除未定义的 jumpPage
             dialogVisible,
             evaluationForm,
             evaluationFormRef,
             rules,
             filteredEvaluations,
             getQualityLevelType,
-            handleSizeChange,
-            handleCurrentChange,
-            handleJumpPage,
             handleAddEvaluation,
             handleViewDetail,
             handleDelete,
@@ -466,9 +446,9 @@ export default {
 </script>
 
 <style scoped>
-.quality-evaluation {
+/* .quality-evaluation {
 
-}
+} */
 
 .operation-bar {
     display: flex;
@@ -532,11 +512,7 @@ export default {
     box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 
-.pagination-controls {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
+
 
 .page-jump {
     display: flex;
@@ -558,14 +534,4 @@ export default {
     margin: 0 5px;
 }
 
-:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
-    background-color: #67c23a;
-}
-
-:deep(.el-button--success--small) {
-    --el-button-bg-color: #def3d6;
-    --el-button-border-color: #67c23a;
-    --el-button-hover-bg-color: #85ce61;
-    --el-button-hover-border-color: #85ce61;
-}
 </style>
