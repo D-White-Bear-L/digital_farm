@@ -1,21 +1,22 @@
 <template>
   <div id="app">
-    <Home />
+    <LayOut />
   </div>
 </template>
 
 <script>
-import Home from './components/Home.vue'
+import LayOut from './layout.vue'; 
 
 export default {
   name: 'App',
   components: {
-    Home
+    LayOut
   }
 }
 </script>
 
 <style>
+/* 全局重置样式 */
 * {
   margin: 0;
   padding: 0;
@@ -23,13 +24,9 @@ export default {
 }
 
 body {
-  font-family: 'Microsoft YaHei', Arial, sans-serif;
+  /* font-family: 'Microsoft YaHei', Arial, sans-serif; */
   overflow: hidden;
 }
 
-#app {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
+
 </style>

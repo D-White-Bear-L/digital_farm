@@ -1,5 +1,5 @@
 <template>
-  <div class="farm-map-container">
+  <div class="farm-map-container" ref="mapContainerRef">
     <!-- 农场选择下拉列表 -->
     <div class="farm-selector">
       <select v-model="selectedFarmId" @change="changeFarm" class="farm-dropdown">
@@ -457,18 +457,21 @@ export default {
       if (!this.map || !this.markerObjs || this.markerObjs.length === 0) return;
       
       const zoom = this.map.getZoom();
-      const mapContainer = document.querySelector('.farm-map-container');
+      const mapContainer = this.$refs.mapContainerRef;
       
-      // 根据缩放级别添加类名
-      if (zoom < 12) {
-        mapContainer.classList.remove('zoom-level-medium', 'zoom-level-high');
-        mapContainer.classList.add('zoom-level-low');
-      } else if (zoom < 16) {
-        mapContainer.classList.remove('zoom-level-low', 'zoom-level-high');
-        mapContainer.classList.add('zoom-level-medium');
-      } else {
-        mapContainer.classList.remove('zoom-level-low', 'zoom-level-medium');
-        mapContainer.classList.add('zoom-level-high');
+      // 使用 ref 引用并检查是否存在
+      if (mapContainer) {
+        // 根据缩放级别添加类名
+        if (zoom < 12) {
+          mapContainer.classList.remove('zoom-level-medium', 'zoom-level-high');
+          mapContainer.classList.add('zoom-level-low');
+        } else if (zoom < 16) {
+          mapContainer.classList.remove('zoom-level-low', 'zoom-level-high');
+          mapContainer.classList.add('zoom-level-medium');
+        } else {
+          mapContainer.classList.remove('zoom-level-low', 'zoom-level-medium');
+          mapContainer.classList.add('zoom-level-high');
+        }
       }
       
       // 根据缩放级别调整标记大小和可见性
