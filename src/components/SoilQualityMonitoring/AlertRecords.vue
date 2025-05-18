@@ -199,7 +199,6 @@ export default {
             totalItems,
             currentPage,
             pageSize,
-            
             // 方法
             handlePagination,
             handleView,
