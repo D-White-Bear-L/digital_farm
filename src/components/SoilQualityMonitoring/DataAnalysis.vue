@@ -109,18 +109,13 @@
         </el-table-column>
       </el-table>
       
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
+      <!-- 分页 - 使用PageBar组件替换原有分页 -->
+      <PageBar
+        v-model:page="currentPage"
+        v-model:limit="pageSize"
+        :total="total"
+        @pagination="handlePagination" 
+      />
     </div>
   </div>
 </template>
@@ -130,6 +125,7 @@ import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { Search, ArrowUp, ArrowDown, More } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
+import PageBar from '@/components/PageBar.vue'
 
 export default {
   name: 'DataAnalysis',
@@ -137,7 +133,8 @@ export default {
     Search,
     ArrowUp,
     ArrowDown,
-    More
+    More,
+    PageBar
   },
   setup() {
     // 基地选项
@@ -181,7 +178,9 @@ export default {
       { id: 8, base: 'lianhuadao', monitoringPoint: '莲花岛监测点1', sampleDate: '2024-03-16', element: '锌', value: 0.7, status: '偏低', trend: '下降' },
       { id: 9, base: 'lianhuadao', monitoringPoint: '莲花岛监测点2', sampleDate: '2024-03-16', element: '锌', value: 1.0, status: '正常', trend: '稳定' },
       { id: 10, base: 'macun', monitoringPoint: '马村监测点1', sampleDate: '2024-03-17', element: '锌', value: 1.4, status: '正常', trend: '上升' },
-      // 添加更多模拟数据...
+      {  id: 11, base: 'macun', monitoringPoint: '马村监测点2', sampleDate: '2024-03-18', element: '锌', value: 1.6, status: '正常', trend: '下降' },
+      {  id: 12, base: 'macun', monitoringPoint: '马村监测点3', sampleDate: '2024-03-19', element: '锌', value: 1.8, status: '正常', trend: '稳定' },
+      {  id: 13, base: 'macun', monitoringPoint: '马村监测点4', sampleDate: '2024-03-20', element: '锌', value: 1.2, status: '正常', trend: '上升' }
     ])
     
     // 根据筛选条件过滤的数据
@@ -397,13 +396,20 @@ export default {
       updateChart()
     }
     
-    // 处理分页大小变化
+    // 处理分页 - 新增处理分页方法
+    const handlePagination = ({page, limit}) => {
+      currentPage.value = page
+      pageSize.value = limit
+      updateChart()
+    }
+    
+    // 处理分页大小变化 - 保留原有方法以兼容
     const handleSizeChange = (size) => {
       pageSize.value = size
       updateChart()
     }
     
-    // 处理当前页变化
+    // 处理当前页变化 - 保留原有方法以兼容
     const handleCurrentChange = (page) => {
       currentPage.value = page
       updateChart()
@@ -446,6 +452,7 @@ export default {
       handleTabChange,
       handleSizeChange,
       handleCurrentChange,
+      handlePagination,
       exportData,
       updateChart,
       getValueLabel,
@@ -555,11 +562,7 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
+/* 移除原有的分页容器样式 */
 
 :deep(.el-tabs__item) {
   font-size: 16px;
