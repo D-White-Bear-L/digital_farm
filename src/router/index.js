@@ -1,12 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../components/Home.vue'
-// import index from '@/components/SoilQualityMonitoring/index.vue'
+// import Home from '../components/Home.vue'
+import DevicesList from '@/components/DevicesManage/DevicesList.vue'
 
 const routes = [
   {
     path: '/',
     name: 'Home',
-    component: Home
+    component: DevicesList
   },
   {
     path: '/monitoring',
