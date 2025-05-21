@@ -131,13 +131,40 @@ CREATE TABLE User (
     username VARCHAR(50) NOT NULL COMMENT '用户名',
     password VARCHAR(255) NOT NULL COMMENT '密码',
     real_name VARCHAR(50) COMMENT '真实姓名',
-    role ENUM('admin','manager','operator') NOT NULL DEFAULT 'operator' COMMENT '角色',
+    role ENUM('admin','manager','user') NOT NULL DEFAULT 'operator' COMMENT '角色',
+    avatar_url VARCHAR(255) COMMENT '用户头像URL',
+    gender ENUM('male','female','other') COMMENT '性别',
+    birthday DATE COMMENT '出生日期',
+    department VARCHAR(50) COMMENT '所属部门',
+    position VARCHAR(50) COMMENT '职位',
     phone VARCHAR(20) COMMENT '联系电话',
     email VARCHAR(100) COMMENT '邮箱',
+    address VARCHAR(200) COMMENT '地址',
+    bio TEXT COMMENT '个人简介',
     last_login DATETIME COMMENT '最后登录时间',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
+    login_ip VARCHAR(50) COMMENT '最后登录IP',
+    status ENUM('active','inactive','locked') NOT NULL DEFAULT 'active' COMMENT '账号状态',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 );
 ```
+
+## 用户头像存储方案(后面可以改成OSS)
+对于用户头像的存储，有两种主要方案：
+
+### 方案一：文件系统存储 + 数据库引用
+1. 将头像图片存储在服务器文件系统的特定目录中
+2. 在数据库中只存储图片的URL或相对路径
+3. 可以按用户ID组织目录结构，如 /uploads/avatars/{user_id}/{filename}
+优点 ：
+
+- 数据库负担小，只存储路径信息
+- 便于通过Web服务器直接访问图片
+- 适合大量图片的存储和访问
+缺点 ：
+
+- 需要管理文件系统的存储空间
+- 备份和迁移时需要同时处理数据库和文件系统
 
 ## 表关系说明
 

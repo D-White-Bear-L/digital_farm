@@ -47,6 +47,11 @@
         <el-menu-item index="/alert-settings">预警设置</el-menu-item>
         <el-menu-item index="/alert-records">监测预警</el-menu-item>
       </el-sub-menu>
+
+      <el-menu-item index="/user">
+        <el-icon><User /></el-icon>
+        <span>用户管理</span>
+      </el-menu-item>
     </el-menu>
     
     <!-- 添加折叠按钮 -->
@@ -68,7 +73,8 @@ import {
   DataAnalysis,
   Bell,
   Expand,
-  Fold
+  Fold,
+  User
 } from '@element-plus/icons-vue'
 
 export default {
@@ -81,7 +87,8 @@ export default {
     DataAnalysis,
     Bell,
     Expand,
-    Fold
+    Fold,
+    User
   },
   setup(props, { emit }) {
     const route = useRoute()

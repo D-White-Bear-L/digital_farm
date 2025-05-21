@@ -37,6 +37,11 @@ const routes = [
     path: '/alert-records',
     name: 'AlertRecords',
     component: () => import('@/components/SoilQualityMonitoring/AlertRecords.vue')
+  },
+  {
+    path: '/user',
+    name: 'User',
+    component: () => import('@/components/User/User.vue')
   }
 ]
 
