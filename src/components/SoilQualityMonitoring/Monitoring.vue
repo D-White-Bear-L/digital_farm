@@ -24,7 +24,7 @@
         </div>
 
         <!-- 监测点列表 -->
-        <el-table :data="paginatedMonitoringPoints" style="width: 100%">
+        <el-table :data="paginatedMonitoringPoints" style="width: 100%" v-loading="loading">
             <el-table-column type="index" label="序号" width="80" />
             <el-table-column prop="area" label="基地" />
             <el-table-column prop="name" label="监测点名称" />
@@ -103,10 +103,11 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
+import { getMonitoring } from '@/api/soilQualityMonitoring'
 
 export default {
     name: 'MonitoringPage',
@@ -117,17 +118,18 @@ export default {
     },
    
     setup() {
+        // 加载状态
+        const loading = ref(false)
 
         // 分页相关
         const currentPage = ref(1)
         const pageSize = ref(10)
-        // const totalItems = ref(0)
 
         // 分页逻辑
         const handlePagination = ({page, limit}) => {
             currentPage.value = page
             pageSize.value = limit
-            console.log('currentPage:', currentPage.value, 'pageSize:', pageSize.value)
+            fetchMonitoringPoints()
         }
 
         // 基地选项
@@ -161,117 +163,55 @@ export default {
             image: ''
         })
 
-        // 模拟数据
-        const monitoringPoints = ref([
-            {
-                id: 1,
-                area: '测试基地1',
-                name: '监测点1',
-                location: '东区',
-                image: 'https://example.com/image1.jpg',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 2,
-                area: '测试基地2',
-                name: '监测点2',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 3,
-                area: '测试基地3',
-                name: '监测点3',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 4,
-                area: '测试基地4',
-                name: '监测点4',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 5,
-                area: '测试基地3',
-                name: '监测点3',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 6,
-                area: '测试基地3',
-                name: '监测点3',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 7,
-                area: '测试基地3',
-                name: '监测点3',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 8,
-                area: '测试基地3',
-                name: '监测点3',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 9,
-                area: '测试基地3',
-                name: '监测点3',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 10,
-                area: '测试基地3',
-                name: '监测点3',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
-            {
-                id: 11,
-                area: '测试基地3',
-                name: '监测点3',
-                location: '南区',
-                image: '',
-                createTime: '2024-03-18 13:36:56'
-            },
+        // 监测点数据
+        const monitoringPoints = ref([])
 
-        ])
+        // 获取监测点数据
+        const fetchMonitoringPoints = () => {
+            loading.value = true
+            const params = {
+                page: currentPage.value,
+                limit: pageSize.value,
+                area: selectedArea.value,
+                name: searchText.value
+            }
 
-        // 过滤后的监测点列表
-        const filteredMonitoringPoints = computed(() => {
-            return monitoringPoints.value.filter(point => {
-                const areaMatch = !selectedArea.value || point.area === selectedArea.value
-                const nameMatch = !searchText.value || point.name.includes(searchText.value)
-                return areaMatch && nameMatch
+            getMonitoring(params).then(res => {
+                if (res.code === 200) {
+                    monitoringPoints.value = res.data.list || []
+                    totalItems.value = res.data.total || 0
+                } else {
+                    ElMessage.error(res.message || '获取监测点数据失败')
+                }
+            }).catch(err => {
+                console.error('获取监测点数据出错:', err)
+                ElMessage.error('获取监测点数据出错')
+            }).finally(() => {
+                loading.value = false
             })
-        })
+        }
+
+        // 监听筛选条件变化
+        const handleFilter = () => {
+            currentPage.value = 1 // 重置到第一页
+            fetchMonitoringPoints()
+        }
+
+        // 监听区域和搜索文本变化
+        // const watchFilter = () => {
+        //     // 这里可以使用watch监听selectedArea和searchText的变化
+        //     // 但为了简单起见，我们可以在搜索按钮点击时调用handleFilter
+        //     // 或者在区域选择变化时调用handleFilter
+        // }
+
+        // 过滤后的监测点列表 (现在直接使用从API获取的数据)
+        const filteredMonitoringPoints = computed(() => monitoringPoints.value)
         
         // 计算总条目数
-        const totalItems = computed(() => filteredMonitoringPoints.value.length)
+        const totalItems = ref(0)
         
-        // 分页后的监测点列表
-        const paginatedMonitoringPoints = computed(() => {
-            const startIndex = (currentPage.value - 1) * pageSize.value
-            const endIndex = startIndex + pageSize.value
-            return filteredMonitoringPoints.value.slice(startIndex, endIndex)
-        })
+        // 分页后的监测点列表 (现在直接使用从API获取的数据，因为API已经处理了分页)
+        const paginatedMonitoringPoints = computed(() => monitoringPoints.value)
 
         // 处理新增监测点
         const handleAddMonitoringPoint = () => {
@@ -303,21 +243,22 @@ export default {
                     type: 'warning',
                 }
             ).then(() => {
-                // 这里添加删除逻辑
-                // 从数组中移除该监测点
-                const index = monitoringPoints.value.findIndex(item => item.id === row.id)
-                if (index !== -1) {
-                    monitoringPoints.value.splice(index, 1)
-                }
+                // 调用删除API
+                // 这里需要添加删除API的调用
+                // 删除成功后重新获取数据
                 ElMessage.success(`删除监测点"${row.name}"成功`)
+                fetchMonitoringPoints()
             }).catch(() => {})
         }
 
         // 处理表单提交
         const handleSubmit = () => {
-            // 这里添加提交逻辑
+            // 调用添加或更新API
+            // 这里需要添加添加或更新API的调用
+            // 成功后重新获取数据
             ElMessage.success(dialogType.value === 'add' ? '添加成功' : '修改成功')
             dialogVisible.value = false
+            fetchMonitoringPoints()
         }
 
         // 处理图片上传成功
@@ -325,7 +266,13 @@ export default {
             monitoringPointForm.value.image = response.url
         }
 
+        // 初始化时获取数据
+        onMounted(() => {
+            fetchMonitoringPoints()
+        })
+
         return {
+            loading,
             areas,
             selectedArea,
             searchText,
@@ -342,7 +289,8 @@ export default {
             totalItems,
             currentPage,
             pageSize,
-            handlePagination
+            handlePagination,
+            handleFilter
         }
     }
 }
