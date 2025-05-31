@@ -2,7 +2,7 @@
     <div class="monitoring-container">
         <!-- 顶部操作栏 -->
         <div class="operation-bar">
-            <el-select v-model="selectedArea" placeholder="基地" clearable>
+            <el-select v-model="selectedArea" placeholder="基地" clearable @change="handleFilter">
                 <el-option label="全部" value=""></el-option>
                 <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
             </el-select>
@@ -12,13 +12,19 @@
                 placeholder="监测点名称"
                 clearable
                 class="search-input"
+                @clear="handleFilter"
+                @keyup.enter="handleFilter"
             >
                 <template #prefix>
                     <el-icon><Search /></el-icon>
                 </template>
             </el-input>
 
-            <el-button type="primary" @click="handleAddMonitoringPoint">
+            <el-button type="success" @click="handleFilter">
+                <el-icon><Search /></el-icon>查询
+            </el-button>
+
+            <el-button type="success" @click="handleAddMonitoringPoint">
                 <el-icon><Plus /></el-icon>新增监测点
             </el-button>
         </div>
@@ -26,15 +32,15 @@
         <!-- 监测点列表 -->
         <el-table :data="paginatedMonitoringPoints" style="width: 100%" v-loading="loading">
             <el-table-column type="index" label="序号" width="80" />
-            <el-table-column prop="area" label="基地" />
-            <el-table-column prop="name" label="监测点名称" />
+            <el-table-column prop="baseName" label="基地" />
+            <el-table-column prop="pointName" label="监测点名称" />
             <el-table-column prop="location" label="位置" />
             <el-table-column label="监测点照片" width="120">
                 <template #default="scope">
                     <el-image
-                        v-if="scope.row.image"
-                        :src="scope.row.image"
-                        :preview-src-list="[scope.row.image]"
+                        v-if="scope.row.imageUrl"
+                        :src="scope.row.imageUrl"
+                        :preview-src-list="[scope.row.imageUrl]"
                         fit="cover"
                         class="monitoring-point-image"
                     >
@@ -70,12 +76,12 @@
         >
             <el-form :model="monitoringPointForm" label-width="100px">
                 <el-form-item label="基地">
-                    <el-select v-model="monitoringPointForm.area" placeholder="请选择基地">
+                    <el-select v-model="monitoringPointForm.baseName" placeholder="请选择基地">
                         <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
                     </el-select>
                 </el-form-item>
                 <el-form-item label="监测点名称">
-                    <el-input v-model="monitoringPointForm.name" />
+                    <el-input v-model="monitoringPointForm.pointName" />
                 </el-form-item>
                 <el-form-item label="位置">
                     <el-input v-model="monitoringPointForm.location" />
@@ -87,7 +93,7 @@
                         :show-file-list="false"
                         :on-success="handleUploadSuccess"
                     >
-                        <img v-if="monitoringPointForm.image" :src="monitoringPointForm.image" class="uploaded-image">
+                        <img v-if="monitoringPointForm.imageUrl" :src="monitoringPointForm.imageUrl" class="uploaded-image">
                         <el-icon v-else class="upload-icon"><Plus /></el-icon>
                     </el-upload>
                 </el-form-item>
@@ -103,11 +109,12 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted,onUnmounted } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
-import { getMonitoring } from '@/api/soilQualityMonitoring'
+import { getMonitoring, getBaseOptions, addMonitoringPoint, updateMonitoringPoint, deleteMonitoringPoint } from '@/api/soilQualityMonitoring'
+// import { debounce } from 'lodash'
 
 export default {
     name: 'MonitoringPage',
@@ -124,56 +131,57 @@ export default {
         // 分页相关
         const currentPage = ref(1)
         const pageSize = ref(10)
+        const totalItems = ref(0)
 
         // 分页逻辑
-        const handlePagination = ({page, limit}) => {
+        const handlePagination = (({page, limit}) => {
             currentPage.value = page
             pageSize.value = limit
             fetchMonitoringPoints()
-        }
+        },100)
 
         // 基地选项
-        const areas = [
-            { label: '测试基地1', value: 'test1' },
-            { label: '测试基地2', value: 'test2' },
-            { label: '测试基地3', value: 'test3' },
-            { label: '测试基地4', value: 'test4' },
-            { label: '测试基地5', value: 'test5' },
-            { label: '测试基地6', value: 'test6' },
-            { label: '测试基地7', value: 'test7' },
-            { label: '测试基地8', value: 'test8' },
-            { label: '测试基地9', value: 'test9' },
-            { label: '测试基地10', value: 'test10' },
-            { label: '测试基地11', value: 'test11' },
-            { label: '测试基地12', value: 'test12' },
-            { label: '测试基地13', value: 'test13' },
-            { label: '测试基地14', value: 'test14' },
-            // 更多基地选项...
-        ]
+        const areas = ref([])
 
         // 状态数据
-        const selectedArea = ref('')
-        const searchText = ref('')
-        const dialogVisible = ref(false)
-        const dialogType = ref('add')
+        const selectedArea = ref(null) // 当前选中的基地
+        const searchText = ref('') // 搜索文本
+        const dialogVisible = ref(false) // 对话框可见性
+        const dialogType = ref('add') // 对话框类型
+        // 状态数据
         const monitoringPointForm = ref({
-            area: '',
-            name: '',
+            pointId: null,
+            baseName: '',
+            pointName: '',
             location: '',
-            image: ''
+            imageUrl: '' 
         })
 
         // 监测点数据
         const monitoringPoints = ref([])
 
+        // 获取基地选项
+        const fetchBaseOptions = () => {
+            getBaseOptions().then(res => {
+                if (res.code === 200) {
+                    areas.value = res.data
+                } else {
+                    ElMessage.error(res.message || '获取基地选项失败')
+                }
+            }).catch(err => {
+                console.error('获取基地选项出错:', err)
+                ElMessage.error('获取基地选项出错')
+            })
+        }
+
         // 获取监测点数据
         const fetchMonitoringPoints = () => {
-            loading.value = true
+            loading.value = true // 显示加载状态
             const params = {
-                page: currentPage.value,
-                limit: pageSize.value,
-                area: selectedArea.value,
-                name: searchText.value
+                pageNum: currentPage.value, // 当前页码
+                pageSize: pageSize.value, // 每页数量
+                baseId: selectedArea.value === "" ? null : selectedArea.value, // 基地ID，空字符串转为null
+                keyword: searchText.value === "" ? null : searchText.value // 搜索关键字，空字符串转为null
             }
 
             getMonitoring(params).then(res => {
@@ -194,33 +202,22 @@ export default {
         // 监听筛选条件变化
         const handleFilter = () => {
             currentPage.value = 1 // 重置到第一页
+
             fetchMonitoringPoints()
         }
 
-        // 监听区域和搜索文本变化
-        // const watchFilter = () => {
-        //     // 这里可以使用watch监听selectedArea和searchText的变化
-        //     // 但为了简单起见，我们可以在搜索按钮点击时调用handleFilter
-        //     // 或者在区域选择变化时调用handleFilter
-        // }
-
-        // 过滤后的监测点列表 (现在直接使用从API获取的数据)
-        const filteredMonitoringPoints = computed(() => monitoringPoints.value)
-        
-        // 计算总条目数
-        const totalItems = ref(0)
-        
-        // 分页后的监测点列表 (现在直接使用从API获取的数据，因为API已经处理了分页)
+        // 分页后的监测点列表
         const paginatedMonitoringPoints = computed(() => monitoringPoints.value)
 
         // 处理新增监测点
         const handleAddMonitoringPoint = () => {
             dialogType.value = 'add'
             monitoringPointForm.value = {
-                area: '',
-                name: '',
+                pointId: null,
+                baseName: '',
+                pointName: '',
                 location: '',
-                image: ''
+                imageUrl: ''
             }
             dialogVisible.value = true
         }
@@ -235,7 +232,7 @@ export default {
         // 处理删除
         const handleDelete = (row) => {
             ElMessageBox.confirm(
-                `确认删除监测点"${row.name}"吗？`,
+                `确认删除监测点"${row.pointName}"吗？`,
                 '警告',
                 {
                     confirmButtonText: '确定',
@@ -244,31 +241,82 @@ export default {
                 }
             ).then(() => {
                 // 调用删除API
-                // 这里需要添加删除API的调用
-                // 删除成功后重新获取数据
-                ElMessage.success(`删除监测点"${row.name}"成功`)
-                fetchMonitoringPoints()
+                deleteMonitoringPoint(row.pointId).then(res => {
+                    if (res.code === 200) {
+                        ElMessage.success(`删除监测点"${row.pointName}"成功`)
+                        fetchMonitoringPoints()
+                    } else {
+                        ElMessage.error(res.message || '删除失败')
+                    }
+                }).catch(err => {
+                    console.error('删除监测点出错:', err)
+                    ElMessage.error('删除监测点出错')
+                })
             }).catch(() => {})
         }
 
-        // 处理表单提交
+        // 处理表单提交 
         const handleSubmit = () => {
-            // 调用添加或更新API
-            // 这里需要添加添加或更新API的调用
-            // 成功后重新获取数据
-            ElMessage.success(dialogType.value === 'add' ? '添加成功' : '修改成功')
-            dialogVisible.value = false
-            fetchMonitoringPoints()
+            if (!monitoringPointForm.value.baseName) {
+                ElMessage.warning('请选择基地')
+                return
+            }
+            if (!monitoringPointForm.value.pointName) {
+                ElMessage.warning('请输入监测点名称')
+                return
+            }
+            if (!monitoringPointForm.value.location) {
+                ElMessage.warning('请输入监测点位置')
+                return
+            }
+
+            if (dialogType.value === 'add') {
+                // 添加监测点
+                addMonitoringPoint(monitoringPointForm.value).then(res => {
+                    if (res.code === 200) {
+                        ElMessage.success('添加监测点成功')
+                        dialogVisible.value = false
+                        fetchMonitoringPoints()
+                    } else {
+                        ElMessage.error(res.message || '添加失败')
+                    }
+                }).catch(err => {
+                    console.error('添加监测点出错:', err)
+                    ElMessage.error('添加监测点出错')
+                })
+            } else {
+                // 更新监测点
+                updateMonitoringPoint(monitoringPointForm.value).then(res => {
+                    if (res.code === 200) {
+                        ElMessage.success('修改监测点成功')
+                        dialogVisible.value = false
+                        fetchMonitoringPoints()
+                    } else {
+                        ElMessage.error(res.message || '修改失败')
+                    }
+                }).catch(err => {
+                    console.error('修改监测点出错:', err)
+                    ElMessage.error('修改监测点出错')
+                })
+            }
         }
 
         // 处理图片上传成功
         const handleUploadSuccess = (response) => {
-            monitoringPointForm.value.image = response.url
+            monitoringPointForm.value.imageUrl = response.url 
         }
 
         // 初始化时获取数据
         onMounted(() => {
+            fetchBaseOptions()
             fetchMonitoringPoints()
+        })
+
+        // 注销组件
+        onUnmounted(() => {
+            // 确保任何未完成的防抖函数被取消
+            fetchMonitoringPoints.cancel()
+            handlePagination.cancel()
         })
 
         return {
@@ -279,7 +327,6 @@ export default {
             dialogVisible,
             dialogType,
             monitoringPointForm,
-            filteredMonitoringPoints,
             paginatedMonitoringPoints,
             handleAddMonitoringPoint,
             handleEdit,
