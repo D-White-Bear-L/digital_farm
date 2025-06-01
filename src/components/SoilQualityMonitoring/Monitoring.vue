@@ -114,7 +114,7 @@ import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
 import { getMonitoring, getBaseOptions, addMonitoringPoint, updateMonitoringPoint, deleteMonitoringPoint } from '@/api/soilQualityMonitoring'
-// import { debounce } from 'lodash'
+import { debounce } from 'lodash'
 
 export default {
     name: 'MonitoringPage',
@@ -134,11 +134,11 @@ export default {
         const totalItems = ref(0)
 
         // 分页逻辑
-        const handlePagination = (({page, limit}) => {
+        const handlePagination = debounce(({page, limit}) => {
             currentPage.value = page
             pageSize.value = limit
             fetchMonitoringPoints()
-        },100)
+        }, 100)
 
         // 基地选项
         const areas = ref([])
@@ -175,7 +175,7 @@ export default {
         }
 
         // 获取监测点数据
-        const fetchMonitoringPoints = () => {
+        const fetchMonitoringPoints = debounce(() => {
             loading.value = true // 显示加载状态
             const params = {
                 pageNum: currentPage.value, // 当前页码
@@ -197,7 +197,7 @@ export default {
             }).finally(() => {
                 loading.value = false
             })
-        }
+        }, 100)
 
         // 监听筛选条件变化
         const handleFilter = () => {

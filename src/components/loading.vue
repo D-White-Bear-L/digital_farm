@@ -9,7 +9,6 @@ components: {
 }
 </script>
 <style>
-  /* HTML: <div class="loader"></div> */
 .loader {
   width: 50px;
   aspect-ratio: 1;
