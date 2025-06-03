@@ -18,8 +18,26 @@
         </template>
       </el-input>
       
-      <el-button type="primary" @click="handleSearch" class="filter-item">查询</el-button>
-      <el-button type="success" @click="exportData" class="filter-item">导出数据</el-button>
+      <!-- 添加日期范围选择器 -->
+      <el-date-picker
+        v-model="dateRange"
+        type="daterange"
+        range-separator="至"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        format="YYYY-MM-DD"
+        value-format="YYYY-MM-DD"
+        class="filter-item date-picker"
+      />
+      
+      <el-button type="primary" @click="handleSearch" class="filter-item">
+        <el-icon><Search /></el-icon>
+        查询
+      </el-button>
+      <el-button type="success" @click="exportData" class="filter-item">
+        <el-icon><Download /></el-icon>
+        导出数据
+      </el-button>
     </div>
     
     <!-- 指标切换标签页 -->
@@ -89,6 +107,11 @@
     <div class="table-container">
       <el-table :data="tableData" border stripe style="width: 100%">
         <el-table-column type="index" label="序号" width="60"></el-table-column>
+        <el-table-column prop="base" label="基地" width="120">
+          <template #default="scope">
+            {{ baseOptions.find(option => option.value === scope.row.base)?.label || scope.row.base }}
+          </template>
+        </el-table-column>
         <el-table-column prop="monitoringPoint" label="监测点" min-width="120"></el-table-column>
         <el-table-column prop="sampleDate" label="采样日期" width="120"></el-table-column>
         <el-table-column prop="value" :label="getValueLabel()" width="120"></el-table-column>
@@ -122,7 +145,7 @@
 
 <script>
 import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
-import { Search, ArrowUp, ArrowDown, More } from '@element-plus/icons-vue'
+import { Search, ArrowUp, ArrowDown, More, Download } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import PageBar from '@/components/PageBar.vue'
@@ -134,6 +157,7 @@ export default {
     ArrowUp,
     ArrowDown,
     More,
+    Download,
     PageBar
   },
   setup() {
@@ -149,6 +173,7 @@ export default {
     const monitoringPointName = ref('')
     const activeTab = ref('microElements')
     const selectedElement = ref('铜')
+    const dateRange = ref([])
     
     // 分页相关
     const currentPage = ref(1)
@@ -166,22 +191,76 @@ export default {
       stdDev: 0
     })
     
+    // 扩展模拟数据，添加更多时间点的数据
+    const generateTimeSeriesData = () => {
+      const elements = ['铜', '锌', '铁', '锰', '硼', '钼', '氯', '硅']
+      const bases = ['beilian', 'lianhuadao', 'macun']
+      const monitoringPoints = {
+        beilian: ['北莲监测点1', '北莲监测点2'],
+        lianhuadao: ['莲花岛监测点1', '莲花岛监测点2'],
+        macun: ['马村监测点1', '马村监测点2', '马村监测点3', '马村监测点4']
+      }
+      const statuses = ['正常', '偏高', '偏低']
+      const trends = ['上升', '下降', '稳定']
+      
+      // 生成从2023-04到2025-03的月度数据
+      const startDate = new Date('2023-04-01')
+      const endDate = new Date('2025-03-31')
+      const data = []
+      let id = 1
+      
+      // 为每个基地、监测点、元素生成时间序列数据
+      bases.forEach(base => {
+        monitoringPoints[base].forEach(point => {
+          elements.forEach(element => {
+            // 为每个月生成数据
+            const currentDate = new Date(startDate)
+            while (currentDate <= endDate) {
+              const month = currentDate.getMonth() + 1
+              const year = currentDate.getFullYear()
+              const dateStr = `${year}-${month.toString().padStart(2, '0')}-${Math.floor(Math.random() * 28 + 1).toString().padStart(2, '0')}`
+              
+              // 生成波动的值，使图表更有变化
+              let value = 0
+              if (element === '铜') value = Math.random() * 2 + 0.5 + Math.sin(month / 2) * 0.5
+              else if (element === '锌') value = Math.random() * 1.5 + 0.7 + Math.cos(month / 3) * 0.8
+              else if (element === '铁') value = Math.random() * 3 + 1 + Math.sin(month / 1.5) * 1
+              else value = Math.random() * 2 + 0.8
+              
+              // 根据月份添加季节性变化
+              if (month >= 6 && month <= 8) { // 夏季
+                value *= 1.3
+              } else if (month >= 12 || month <= 2) { // 冬季
+                value *= 0.7
+              }
+              
+              // 随机状态和趋势
+              const status = statuses[Math.floor(Math.random() * statuses.length)]
+              const trend = trends[Math.floor(Math.random() * trends.length)]
+              
+              data.push({
+                id: id++,
+                base,
+                monitoringPoint: point,
+                sampleDate: dateStr,
+                element,
+                value: parseFloat(value.toFixed(2)),
+                status,
+                trend
+              })
+              
+              // 增加一个月
+              currentDate.setMonth(currentDate.getMonth() + 1)
+            }
+          })
+        })
+      })
+      
+      return data
+    }
+    
     // 模拟数据
-    const allData = reactive([
-      { id: 1, base: 'beilian', monitoringPoint: '北莲监测点1', sampleDate: '2024-03-15', element: '铜', value: 1.2, status: '正常', trend: '稳定' },
-      { id: 2, base: 'beilian', monitoringPoint: '北莲监测点2', sampleDate: '2024-03-15', element: '铜', value: 1.5, status: '正常', trend: '上升' },
-      { id: 3, base: 'lianhuadao', monitoringPoint: '莲花岛监测点1', sampleDate: '2024-03-16', element: '铜', value: 0.8, status: '偏低', trend: '下降' },
-      { id: 4, base: 'lianhuadao', monitoringPoint: '莲花岛监测点2', sampleDate: '2024-03-16', element: '铜', value: 1.3, status: '正常', trend: '稳定' },
-      { id: 5, base: 'macun', monitoringPoint: '马村监测点1', sampleDate: '2024-03-17', element: '铜', value: 1.8, status: '偏高', trend: '上升' },
-      { id: 6, base: 'beilian', monitoringPoint: '北莲监测点1', sampleDate: '2024-03-15', element: '锌', value: 0.9, status: '正常', trend: '稳定' },
-      { id: 7, base: 'beilian', monitoringPoint: '北莲监测点2', sampleDate: '2024-03-15', element: '锌', value: 1.1, status: '正常', trend: '上升' },
-      { id: 8, base: 'lianhuadao', monitoringPoint: '莲花岛监测点1', sampleDate: '2024-03-16', element: '锌', value: 0.7, status: '偏低', trend: '下降' },
-      { id: 9, base: 'lianhuadao', monitoringPoint: '莲花岛监测点2', sampleDate: '2024-03-16', element: '锌', value: 1.0, status: '正常', trend: '稳定' },
-      { id: 10, base: 'macun', monitoringPoint: '马村监测点1', sampleDate: '2024-03-17', element: '锌', value: 1.4, status: '正常', trend: '上升' },
-      {  id: 11, base: 'macun', monitoringPoint: '马村监测点2', sampleDate: '2024-03-18', element: '锌', value: 1.6, status: '正常', trend: '下降' },
-      {  id: 12, base: 'macun', monitoringPoint: '马村监测点3', sampleDate: '2024-03-19', element: '锌', value: 1.8, status: '正常', trend: '稳定' },
-      {  id: 13, base: 'macun', monitoringPoint: '马村监测点4', sampleDate: '2024-03-20', element: '锌', value: 1.2, status: '正常', trend: '上升' }
-    ])
+    const allData = reactive(generateTimeSeriesData())
     
     // 根据筛选条件过滤的数据
     const filteredData = computed(() => {
@@ -197,12 +276,33 @@ export default {
         result = result.filter(item => item.monitoringPoint.includes(monitoringPointName.value))
       }
       
+      // 根据日期范围筛选
+      if (dateRange.value && dateRange.value.length === 2) {
+        const startDate = new Date(dateRange.value[0])
+        const endDate = new Date(dateRange.value[1])
+        result = result.filter(item => {
+          const itemDate = new Date(item.sampleDate)
+          return itemDate >= startDate && itemDate <= endDate
+        })
+      }
+      
       // 根据当前选择的指标类型筛选
       if (activeTab.value === 'microElements') {
         result = result.filter(item => item.element === selectedElement.value)
       } else if (activeTab.value === 'ph') {
         // 这里可以添加其他指标的筛选逻辑
       }
+      
+      // 按基地和监测点名称排序
+      result.sort((a, b) => {
+        if (a.base !== b.base) {
+          return a.base.localeCompare(b.base)
+        }
+        if (a.monitoringPoint !== b.monitoringPoint) {
+          return a.monitoringPoint.localeCompare(b.monitoringPoint)
+        }
+        return new Date(a.sampleDate) - new Date(b.sampleDate)
+      })
       
       return result
     })
@@ -258,73 +358,208 @@ export default {
       
       calculateStatistics()
       
+      // 按基地和日期分组数据
+      const groupedByBase = {}
+      const allDates = new Set()
+      
+      // 收集所有日期并按基地分组
+      filteredData.value.forEach(item => {
+        allDates.add(item.sampleDate)
+        
+        if (!groupedByBase[item.base]) {
+          groupedByBase[item.base] = {}
+        }
+        
+        // 按日期分组
+        if (!groupedByBase[item.base][item.sampleDate]) {
+          groupedByBase[item.base][item.sampleDate] = []
+        }
+        
+        groupedByBase[item.base][item.sampleDate].push(item)
+      })
+      
+      // 将日期转换为数组并排序
+      const sortedDates = Array.from(allDates).sort((a, b) => new Date(a) - new Date(b))
+      
       // 准备图表数据
-      const xAxisData = filteredData.value.map(item => item.monitoringPoint)
-      const seriesData = filteredData.value.map(item => item.value)
+      const series = []
+      const baseNames = []
+      
+      // 为每个基地创建一个系列
+      Object.keys(groupedByBase).forEach((base, index) => {
+        const baseLabel = baseOptions.find(option => option.value === base)?.label || base
+        baseNames.push(baseLabel)
+        
+        // 为每个监测点找到对应的平均值
+        const seriesData = sortedDates.map(date => {
+          const items = groupedByBase[base][date] || []
+          if (items.length === 0) return null
+          
+          // 计算该日期下所有监测点的平均值
+          const sum = items.reduce((acc, item) => acc + item.value, 0)
+          return [date, parseFloat((sum / items.length).toFixed(2))]
+        }).filter(item => item !== null)
+        
+        // 颜色配置
+        const colors = [
+          ['rgba(131, 191, 246, 0.8)', 'rgba(131, 191, 246, 0.1)'],
+          ['rgba(250, 200, 88, 0.8)', 'rgba(250, 200, 88, 0.1)'],
+          ['rgba(86, 168, 153, 0.8)', 'rgba(86, 168, 153, 0.1)'],
+          ['rgba(255, 107, 107, 0.8)', 'rgba(255, 107, 107, 0.1)'],
+          ['rgba(168, 119, 218, 0.8)', 'rgba(168, 119, 218, 0.1)'],
+          ['rgba(95, 192, 95, 0.8)', 'rgba(95, 192, 95, 0.1)']
+        ]
+        
+        series.push({
+          name: baseLabel,
+          type: 'line',
+          stack: 'Total',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          sampling: 'average',
+          itemStyle: {
+            color: colors[index % colors.length][0]
+          },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              {
+                offset: 0,
+                color: colors[index % colors.length][0]
+              },
+              {
+                offset: 1,
+                color: colors[index % colors.length][1]
+              }
+            ])
+          },
+          emphasis: {
+            focus: 'series'
+          },
+          data: seriesData
+        })
+      })
       
       // 设置图表选项
       const option = {
+        color: ['#83bff6', '#fac858', '#56a899', '#ff6b6b', '#a877da', '#5fc05f'],
         title: {
           text: getChartTitle(),
-          left: 'center'
+          left: 'center',
+          textStyle: {
+            fontSize: 16,
+            fontWeight: 'normal'
+          }
         },
         tooltip: {
           trigger: 'axis',
           axisPointer: {
-            type: 'shadow'
+            type: 'cross',
+            label: {
+              backgroundColor: '#6a7985'
+            }
+          },
+          formatter: function(params) {
+            let result = params[0].axisValue + '<br/>'
+            params.forEach(param => {
+              result += `<div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;">
+                <span style="margin-right:15px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${param.color};margin-right:5px;"></span>
+                  ${param.seriesName}:
+                </span>
+                <span style="font-weight:bold;">${param.value[1]} ${getValueUnit()}</span>
+              </div>`
+            })
+            return result
+          }
+        },
+        legend: {
+          data: baseNames,
+          bottom: 0,
+          icon: 'circle',
+          itemWidth: 10,
+          itemHeight: 10,
+          textStyle: {
+            fontSize: 12
           }
         },
         grid: {
           left: '3%',
           right: '4%',
-          bottom: '3%',
+          bottom: '10%',
+          top: '10%',
           containLabel: true
         },
+        toolbox: {
+          feature: {
+            saveAsImage: {}
+          }
+        },
         xAxis: {
-          type: 'category',
-          data: xAxisData,
+          type: 'time',
+          boundaryGap: false,
+          axisLine: {
+            lineStyle: {
+              color: '#ddd'
+            }
+          },
           axisLabel: {
-            interval: 0,
-            rotate: 30
+            formatter: '{yyyy}-{MM}',
+            color: '#666'
+          },
+          splitLine: {
+            show: true,
+            lineStyle: {
+              color: ['#eee'],
+              type: 'dashed'
+            }
           }
         },
         yAxis: {
           type: 'value',
-          name: getValueLabel()
-        },
-        series: [
-          {
-            name: getValueLabel(),
-            type: 'bar',
-            data: seriesData,
-            itemStyle: {
-              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: '#83bff6' },
-                { offset: 0.5, color: '#188df0' },
-                { offset: 1, color: '#188df0' }
-              ])
-            },
-            emphasis: {
-              itemStyle: {
-                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                  { offset: 0, color: '#2378f7' },
-                  { offset: 0.7, color: '#2378f7' },
-                  { offset: 1, color: '#83bff6' }
-                ])
-              }
+          name: getValueLabel(),
+          nameTextStyle: {
+            color: '#666',
+            padding: [0, 30, 0, 0]
+          },
+          axisLine: {
+            show: true,
+            lineStyle: {
+              color: '#ddd'
             }
           },
-          {
-            name: '平均值',
-            type: 'line',
-            data: new Array(xAxisData.length).fill(statistics.avg),
+          axisLabel: {
+            color: '#666'
+          },
+          splitLine: {
             lineStyle: {
-              type: 'dashed',
-              color: '#FF9800'
-            },
-            symbol: 'none'
+              color: ['#eee']
+            }
           }
-        ]
+        },
+        series: series,
+        // 添加右侧数据标签
+        visualMap: {
+          show: true,
+          type: 'piecewise',
+          right: 10,
+          top: 'center',
+          orient: 'vertical',
+          pieces: [
+            { value: 2024, label: '2024-03', color: '#83bff6' },
+            { value: 2023, label: '铜', color: '#fac858' },
+            { value: 2022, label: '锌', color: '#56a899' },
+            { value: 2021, label: '铁', color: '#ff6b6b' },
+            { value: 2020, label: '锰', color: '#a877da' },
+            { value: 2019, label: '硼', color: '#5fc05f' },
+            { value: 2018, label: '钼', color: '#83bff6' },
+            { value: 2017, label: '氯', color: '#fac858' },
+            { value: 2016, label: '硅', color: '#56a899' }
+          ],
+          textStyle: {
+            color: '#333'
+          }
+        }
       }
       
       chartInstance.setOption(option)
@@ -365,6 +600,22 @@ export default {
         return '硫态氮(mg/kg)'
       }
       return '值'
+    }
+    
+    // 获取值的单位
+    const getValueUnit = () => {
+      if (activeTab.value === 'microElements') {
+        return 'mg/kg'
+      } else if (activeTab.value === 'ph') {
+        return ''
+      } else if (activeTab.value === 'moisture') {
+        return '%'
+      } else if (activeTab.value === 'organicMatter' || activeTab.value === 'salinity') {
+        return 'g/kg'
+      } else if (activeTab.value === 'sulfurNitrogen') {
+        return 'mg/kg'
+      }
+      return ''
     }
     
     // 获取状态类型
@@ -421,7 +672,7 @@ export default {
     }
     
     // 监听筛选条件变化
-    watch([selectedBase, monitoringPointName, activeTab, selectedElement], () => {
+    watch([selectedBase, monitoringPointName, activeTab, selectedElement, dateRange], () => {
       updateChart()
     })
     
@@ -443,6 +694,7 @@ export default {
       monitoringPointName,
       activeTab,
       selectedElement,
+      dateRange,
       currentPage,
       pageSize,
       total,
@@ -465,68 +717,109 @@ export default {
 
 <style scoped>
 .data-analysis-container {
-  padding: 20px;
-  background-color: #f5f7fa;
+  padding: 24px;
+  background-color: #f8fafc;
   min-height: calc(100vh - 120px);
+  color: #2c3e50;
 }
 
 .filter-section {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
   background-color: #fff;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.filter-section:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
 .filter-item {
-  margin-right: 15px;
+  margin-right: 16px;
+  margin-bottom: 10px;
 }
 
 .search-input {
-  width: 220px;
+  width: 240px;
+}
+
+.date-picker {
+  width: 320px;
 }
 
 .tabs-container {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .chart-container {
   display: flex;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
 .element-selection {
   width: 100%;
-  margin-bottom: 20px;
-  padding: 10px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border-left: 4px solid #409EFF;
 }
 
 .chart-wrapper {
   width: 75%;
-  height: 400px;
+  height: 450px;
+}
+
+@media screen and (max-width: 1200px) {
+  .chart-wrapper {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .statistics-info {
+    width: 100%;
+    padding-left: 0;
+  }
 }
 
 .chart {
   width: 100%;
   height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .statistics-info {
   width: 25%;
-  padding-left: 20px;
+  padding-left: 24px;
 }
 
 .stat-card {
   height: 100%;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .card-header {
@@ -534,39 +827,75 @@ export default {
   justify-content: space-between;
   align-items: center;
   font-weight: bold;
+  font-size: 16px;
+  padding: 16px 20px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .stat-content {
-  padding: 10px 0;
+  padding: 20px;
 }
 
 .stat-item {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #ebeef5;
+}
+
+.stat-item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
 }
 
 .stat-label {
   color: #606266;
+  font-size: 14px;
 }
 
 .stat-value {
   font-weight: bold;
   color: #409EFF;
+  font-size: 18px;
 }
 
 .table-container {
   background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
 }
 
-/* 移除原有的分页容器样式 */
+.table-container:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+:deep(.el-table) {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+:deep(.el-table th) {
+  background-color: #f8fafc;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+:deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+  background-color: #f8fafc;
+}
 
 :deep(.el-tabs__item) {
   font-size: 16px;
-  padding: 0 20px;
+  padding: 0 24px;
+  height: 50px;
+  line-height: 50px;
+  transition: all 0.3s ease;
 }
 
 :deep(.el-tabs__item.is-active) {
@@ -574,7 +903,43 @@ export default {
   font-weight: bold;
 }
 
+:deep(.el-tabs__item:hover) {
+  color: #66b1ff;
+}
+
+:deep(.el-tabs__active-bar) {
+  height: 3px;
+  border-radius: 3px;
+}
+
 :deep(.el-radio__input.is-checked + .el-radio__label) {
   color: #409EFF;
+}
+
+:deep(.el-button) {
+  border-radius: 8px;
+  padding: 10px 20px;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-button:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.el-tag) {
+  border-radius: 4px;
+  padding: 0 10px;
+  height: 28px;
+  line-height: 28px;
+}
+
+:deep(.el-select) {
+  width: 180px;
+}
+
+:deep(.el-pagination) {
+  margin-top: 20px;
+  justify-content: flex-end;
 }
 </style>

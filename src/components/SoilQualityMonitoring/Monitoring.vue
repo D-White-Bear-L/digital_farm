@@ -41,6 +41,9 @@
                         v-if="scope.row.imageUrl"
                         :src="scope.row.imageUrl"
                         :preview-src-list="[scope.row.imageUrl]"
+                        :initial-index="0"
+                        :preview-teleported="true"
+                        :z-index="9000 + scope.$index"
                         fit="cover"
                         class="monitoring-point-image"
                     >
@@ -76,7 +79,8 @@
         >
             <el-form :model="monitoringPointForm" label-width="100px">
                 <el-form-item label="基地">
-                    <el-select v-model="monitoringPointForm.baseName" placeholder="请选择基地">
+                    <!-- 修改选择器为id -->
+                    <el-select v-model="monitoringPointForm.baseId" placeholder="请选择基地"> 
                         <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
                     </el-select>
                 </el-form-item>
@@ -85,6 +89,12 @@
                 </el-form-item>
                 <el-form-item label="位置">
                     <el-input v-model="monitoringPointForm.location" />
+                </el-form-item>
+                <el-form-item label="经度">
+                    <el-input v-model="monitoringPointForm.longitude" />
+                </el-form-item>
+                <el-form-item label="纬度">
+                    <el-input v-model="monitoringPointForm.latitude" />
                 </el-form-item>
                 <el-form-item label="监测点照片">
                     <el-upload
@@ -151,10 +161,13 @@ export default {
         // 状态数据
         const monitoringPointForm = ref({
             pointId: null,
-            baseName: '',
+            baseId: '', // 使用baseId而不是baseName
             pointName: '',
             location: '',
-            imageUrl: '' 
+            // longitude: null,
+            // latitude: null,
+            imageUrl: '',
+            create_time: null,
         })
 
         // 监测点数据
@@ -212,20 +225,26 @@ export default {
         // 处理新增监测点
         const handleAddMonitoringPoint = () => {
             dialogType.value = 'add'
-            monitoringPointForm.value = {
+            monitoringPointForm.value = { // 重置表单数据
                 pointId: null,
-                baseName: '',
+                baseId: '',  // 使用baseId而不是baseName
                 pointName: '',
                 location: '',
+                longitude: null,
+                latitude: null,
                 imageUrl: ''
             }
             dialogVisible.value = true
         }
-
+        
         // 处理编辑
         const handleEdit = (row) => {
             dialogType.value = 'edit'
             monitoringPointForm.value = { ...row }
+            // 确保baseId是字符串类型
+            if (monitoringPointForm.value.baseId && typeof monitoringPointForm.value.baseId === 'number') {
+                monitoringPointForm.value.baseId = monitoringPointForm.value.baseId.toString()
+            }
             dialogVisible.value = true
         }
 
@@ -257,7 +276,7 @@ export default {
 
         // 处理表单提交 
         const handleSubmit = () => {
-            if (!monitoringPointForm.value.baseName) {
+            if (!monitoringPointForm.value.baseId) {
                 ElMessage.warning('请选择基地')
                 return
             }

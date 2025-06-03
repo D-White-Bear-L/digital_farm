@@ -68,99 +68,208 @@
         <!-- 数据上报/编辑对话框 -->
         <el-dialog
             v-model="dialogVisible"
-            :title="dialogType === 'add' ? '土壤质量数据上报' : '编辑土壤质量数据'"
-            width="800px"
+            :title="dialogType === 'add' ? '土壤样品采集上报' : '编辑土壤样品信息'"
+            width="900px"
         >
             <el-form :model="reportForm" label-width="120px" :rules="rules" ref="reportFormRef">
+                <el-divider content-position="left">采样信息</el-divider>
                 <el-row :gutter="20">
                     <el-col :span="12">
-                        <el-form-item label="监测点名称" prop="monitoringPoint">
-                            <el-select v-model="reportForm.monitoringPoint" placeholder="请选择监测点">
-                                <el-option v-for="point in monitoringPoints" :key="point.value" :label="point.label" :value="point.value" />
+                        <el-form-item label="所属基地" prop="baseId">
+                            <el-select v-model="reportForm.baseId" placeholder="请选择所属基地" style="width: 100%;">
+                                <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
                             </el-select>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="土样编号" prop="soilSampleNo">
-                            <el-input v-model="reportForm.soilSampleNo" />
+                        <el-form-item label="监测点名称" prop="monitoringPoint">
+                            <el-select v-model="reportForm.monitoringPoint" placeholder="请选择监测点名称" style="width: 100%;">
+                                <el-option v-for="point in monitoringPoints" :key="point.value" :label="point.label" :value="point.value" />
+                            </el-select>
                         </el-form-item>
                     </el-col>
                 </el-row>
-                
+
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="土样编号" prop="soilSampleNo">
+                            <el-input v-model="reportForm.soilSampleNo" placeholder="请输入土样编号" maxlength="20" show-word-limit />
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="土样名称" prop="soilSampleName">
+                            <el-input v-model="reportForm.soilSampleName" placeholder="请输入土样名称" maxlength="20" show-word-limit />
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="采样经度" prop="sampleLongitude">
+                            <el-input v-model="reportForm.sampleLongitude" placeholder="请输入采样经度" />
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="采样纬度" prop="sampleLatitude">
+                            <el-input v-model="reportForm.sampleLatitude" placeholder="请输入采样纬度" />
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
+                     <el-col :span="12">
+                        <el-form-item label="采样深度" prop="sampleDepth"> <!-- 移除 (cm) -->
+                            <el-input-number v-model="reportForm.sampleDepth" :min="0" :max="1000" placeholder="请输入采样深度" style="width: 100%;"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="采样时间" prop="sampleDate">
+                            <el-date-picker 
+                                v-model="reportForm.sampleDate" 
+                                type="datetime" 
+                                placeholder="选择日期时间"
+                                format="YYYY-MM-DD HH:mm:ss"
+                                value-format="YYYY-MM-DD HH:mm:ss"
+                                style="width: 100%;"
+                            />
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="采样人" prop="sampler">
+                            <el-input v-model="reportForm.sampler" placeholder="请输入采样人" maxlength="20" show-word-limit />
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="联系电话" prop="contactPhone">
+                            <el-input v-model="reportForm.contactPhone" placeholder="请输入联系电话" maxlength="11" show-word-limit />
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <!-- 原有的土样类型，图片中没有，如果不需要可以删除 -->
+                <!-- 
                 <el-row :gutter="20">
                     <el-col :span="12">
                         <el-form-item label="土样类型" prop="soilType">
-                            <el-select v-model="reportForm.soilType" placeholder="请选择土样类型">
+                            <el-select v-model="reportForm.soilType" placeholder="请选择土样类型" style="width: 100%;">
                                 <el-option label="粘土" value="粘土" />
                                 <el-option label="沙地" value="沙地" />
                                 <el-option label="沙土" value="沙土" />
                             </el-select>
                         </el-form-item>
                     </el-col>
+                </el-row>
+                -->
+
+                <el-divider content-position="left">鉴定结果</el-divider>
+                
+                <el-row :gutter="20">
                     <el-col :span="12">
-                        <el-form-item label="采样深度(cm)" prop="sampleDepth">
-                            <el-input-number v-model="reportForm.sampleDepth" :min="0" :max="100" />
+                        <el-form-item label="PH" prop="ph"> <!-- 标签更新 -->
+                            <el-input-number v-model="reportForm.ph" :min="0" :max="14" :precision="1" :step="0.1" placeholder="请输入PH值" style="width: 100%;" />
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="有机质g/kg" prop="organicMatter">
+                            <el-input-number v-model="reportForm.organicMatter" :min="0" :precision="1" :step="0.1" placeholder="请输入有机质含量" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                 </el-row>
                 
                 <el-row :gutter="20">
                     <el-col :span="12">
-                        <el-form-item label="采样时间" prop="sampleDate">
-                            <el-date-picker 
-                                v-model="reportForm.sampleDate" 
-                                type="date" 
-                                placeholder="选择日期"
-                                format="YYYY-MM-DD"
-                                value-format="YYYY-MM-DD"
-                            />
+                        <el-form-item label="水分%VWC" prop="waterContent"> <!-- 标签更新 -->
+                            <el-input-number v-model="reportForm.waterContent" :min="0" :max="100" :precision="1" :step="0.1" placeholder="请输入水分含量" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="pH值" prop="ph">
-                            <el-input-number v-model="reportForm.ph" :min="0" :max="14" :precision="1" :step="0.1" />
+                        <el-form-item label="有效钾mg/kg" prop="availableK">
+                            <el-input-number v-model="reportForm.availableK" :min="0" :precision="1" :step="0.1" placeholder="请输入有效钾含量" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                 </el-row>
-                
+
                 <el-row :gutter="20">
                     <el-col :span="12">
-                        <el-form-item label="水分(%ww/c)" prop="waterContent">
-                            <el-input-number v-model="reportForm.waterContent" :min="0" :max="100" :precision="1" :step="0.1" />
+                        <el-form-item label="氨mg/kg" prop="availableN"> <!-- 标签更新 -->
+                            <el-input-number v-model="reportForm.availableN" :min="0" :precision="1" :step="0.1" placeholder="请输入氨含量" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="电导率(mS/c m)" prop="conductivity">
-                            <el-input-number v-model="reportForm.conductivity" :min="0" :precision="2" :step="0.1" />
+                        <el-form-item label="盐分ms/cr" prop="conductivity"> <!-- 标签更新 -->
+                            <el-input-number v-model="reportForm.conductivity" :min="0" :precision="2" :step="0.1" placeholder="请输入盐分" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                 </el-row>
-                
+
                 <el-row :gutter="20">
                     <el-col :span="12">
-                        <el-form-item label="有机质(g/kg)" prop="organicMatter">
-                            <el-input-number v-model="reportForm.organicMatter" :min="0" :precision="1" :step="0.1" />
+                        <el-form-item label="硅mg/kg" prop="silicon">
+                            <el-input-number v-model="reportForm.silicon" :min="0" :precision="1" :step="0.1" placeholder="请输入硅含量" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="有效磷(mg/kg)" prop="availableP">
-                            <el-input-number v-model="reportForm.availableP" :min="0" :precision="1" :step="0.1" />
+                        <el-form-item label="硫mg/kg" prop="sulfur">
+                            <el-input-number v-model="reportForm.sulfur" :min="0" :precision="1" :step="0.1" placeholder="请输入硫含量" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                 </el-row>
-                
+
                 <el-row :gutter="20">
                     <el-col :span="12">
-                        <el-form-item label="速效钾(mg/kg)" prop="availableK">
-                            <el-input-number v-model="reportForm.availableK" :min="0" :precision="1" :step="0.1" />
+                        <el-form-item label="硼mg/kg" prop="boron">
+                            <el-input-number v-model="reportForm.boron" :min="0" :precision="1" :step="0.1" placeholder="请输入硼含量" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="有效氮(mg/kg)" prop="availableN">
-                            <el-input-number v-model="reportForm.availableN" :min="0" :precision="1" :step="0.1" />
+                        <el-form-item label="速效磷mg/kg" prop="availableP">
+                            <el-input-number v-model="reportForm.availableP" :min="0" :precision="1" :step="0.1" placeholder="请输入速效磷含量" style="width: 100%;" />
                         </el-form-item>
                     </el-col>
                 </el-row>
+
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="钙mg/kg" prop="calcium">
+                            <el-input-number v-model="reportForm.calcium" :min="0" :precision="1" :step="0.1" placeholder="请输入钙含量" style="width: 100%;" />
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="铜mg/kg" prop="copper">
+                            <el-input-number v-model="reportForm.copper" :min="0" :precision="1" :step="0.1" placeholder="请输入铜含量" style="width: 100%;" />
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="铵态氮g/kg" prop="ammoniumNitrogen">
+                            <el-input-number v-model="reportForm.ammoniumNitrogen" :min="0" :precision="1" :step="0.1" placeholder="请输入铵态氮含量" style="width: 100%;" />
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="锌mg/kg" prop="zinc">
+                            <el-input-number v-model="reportForm.zinc" :min="0" :precision="1" :step="0.1" placeholder="请输入锌含量" style="width: 100%;" />
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="锰mg/kg" prop="manganese">
+                            <el-input-number v-model="reportForm.manganese" :min="0" :precision="1" :step="0.1" placeholder="请输入锰含量" style="width: 100%;" />
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="镁mg/kg" prop="magnesium">
+                            <el-input-number v-model="reportForm.magnesium" :min="0" :precision="1" :step="0.1" placeholder="请输入镁含量" style="width: 100%;" />
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
             </el-form>
             <template #footer>
                 <span class="dialog-footer">
@@ -226,26 +335,46 @@ export default {
         // 表单数据
         const reportForm = reactive({
             id: '',
-            monitoringPoint: '',
-            soilSampleNo: '',
-            soilType: '',
-            sampleDepth: 0,
-            sampleDate: '',
-            ph: 0,
-            waterContent: 0,
-            conductivity: 0,
-            organicMatter: 0,
-            availableP: 0,
-            availableK: 0,
-            availableN: 0
+            baseId: '', // 新增：所属基地ID (假设用ID关联)
+            monitoringPoint: '', // 对应图片中的 “监测点名称”
+            soilSampleNo: '', // 对应图片中的 “土样编号”
+            soilSampleName: '', // 新增：土样名称
+            sampleLongitude: '', // 新增：采样经度
+            sampleLatitude: '', // 新增：采样纬度
+            soilType: '', // 对应图片中的 “土样类型”，但图片中没有这个字段，暂时保留，后续可根据实际需求调整
+            sampleDepth: 0, // 对应图片中的 “采样深度”
+            sampleDate: '', // 对应图片中的 “采样时间”
+            sampler: '', // 新增：采样人
+            contactPhone: '', // 新增：联系电话
+            ph: 0, // 对应图片中的 “PH”
+            organicMatter: 0, // 对应图片中的 “有机质g/kg”
+            waterContent: 0, // 对应图片中的 “水分%VWC”
+            conductivity: 0, // 对应图片中的 “盐分ms/cr” (电导率)
+            availableP: 0, // 对应图片中的 “速效磷mg/kg” (有效磷)
+            availableK: 0, // 对应图片中的 “有效钾mg/kg” (速效钾)
+            availableN: 0, // 对应图片中的 “氨mg/kg” (有效氮)
+            silicon: null, // 新增：硅mg/kg
+            sulfur: null, // 新增：硫mg/kg
+            boron: null, // 新增：硼mg/kg
+            calcium: null, // 新增：钙mg/kg
+            copper: null, // 新增：铜mg/kg
+            ammoniumNitrogen: null, // 新增：铵态氮g/kg
+            zinc: null, // 新增：锌mg/kg
+            manganese: null, // 新增：锰mg/kg
+            magnesium: null, // 新增：镁mg/kg
         })
         
         // 表单验证规则
         const rules = {
-            monitoringPoint: [{ required: true, message: '请选择监测点', trigger: 'change' }],
+            baseId: [{ required: true, message: '请选择所属基地', trigger: 'change' }],
+            monitoringPoint: [{ required: true, message: '请选择监测点名称', trigger: 'change' }],
             soilSampleNo: [{ required: true, message: '请输入土样编号', trigger: 'blur' }],
-            soilType: [{ required: true, message: '请选择土样类型', trigger: 'change' }],
-            sampleDate: [{ required: true, message: '请选择采样时间', trigger: 'change' }]
+            soilSampleName: [{ required: true, message: '请输入土样名称', trigger: 'blur' }],
+            sampleLongitude: [{ required: true, message: '请输入采样经度', trigger: 'blur' }],
+            sampleLatitude: [{ required: true, message: '请输入采样纬度', trigger: 'blur' }],
+            sampleDepth: [{ required: true, message: '请输入采样深度', trigger: 'blur' }],
+            sampleDate: [{ required: true, message: '请选择采样时间', trigger: 'change' }],
+            // soilType: [{ required: true, message: '请选择土样类型', trigger: 'change' }], // 图片中无此字段，暂不设为必填
         }
         
         // 模拟数据
@@ -461,10 +590,46 @@ export default {
         const handleAddReport = () => {
             dialogType.value = 'add'
             Object.keys(reportForm).forEach(key => {
-                if (key !== 'id') {
-                    reportForm[key] = key === 'sampleDepth' ? 0 : ''
+                if (key === 'id') {
+                    reportForm[key] = ''
+                } else if (typeof reportForm[key] === 'number') {
+                    reportForm[key] = 0
+                } else if (reportForm[key] === null || typeof reportForm[key] === 'string') {
+                     reportForm[key] = key.endsWith('Id') || key === 'monitoringPoint' || key === 'soilType' || key === 'sampleDate' ? '' : (reportForm[key] === null ? null : '');
+                } else {
+                    reportForm[key] = ''
                 }
             })
+            // 更精细的重置，确保数字类型为0或null，字符串为空
+            reportForm.id = '';
+            reportForm.baseId = '';
+            reportForm.monitoringPoint = '';
+            reportForm.soilSampleNo = '';
+            reportForm.soilSampleName = '';
+            reportForm.sampleLongitude = '';
+            reportForm.sampleLatitude = '';
+            reportForm.soilType = ''; // 如果保留该字段
+            reportForm.sampleDepth = 0;
+            reportForm.sampleDate = '';
+            reportForm.sampler = '';
+            reportForm.contactPhone = '';
+            reportForm.ph = 0;
+            reportForm.organicMatter = 0;
+            reportForm.waterContent = 0;
+            reportForm.conductivity = 0;
+            reportForm.availableP = 0;
+            reportForm.availableK = 0;
+            reportForm.availableN = 0;
+            reportForm.silicon = null;
+            reportForm.sulfur = null;
+            reportForm.boron = null;
+            reportForm.calcium = null;
+            reportForm.copper = null;
+            reportForm.ammoniumNitrogen = null;
+            reportForm.zinc = null;
+            reportForm.manganese = null;
+            reportForm.magnesium = null;
+
             dialogVisible.value = true
         }
         
