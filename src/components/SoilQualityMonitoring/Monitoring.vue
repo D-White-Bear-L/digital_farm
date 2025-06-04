@@ -123,7 +123,7 @@ import { ref, computed, onMounted,onUnmounted } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
-import { getMonitoring, getBaseOptions, addMonitoringPoint, updateMonitoringPoint, deleteMonitoringPoint } from '@/api/soilQualityMonitoring'
+import { getMonitoring, getBaseOptions, addMonitoringPoint, updateMonitoringPoint, deleteMonitoringPoint } from '@/api/Monitoring'
 import { debounce } from 'lodash'
 
 export default {

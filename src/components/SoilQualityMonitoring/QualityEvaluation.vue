@@ -28,7 +28,16 @@
         
         <!-- 土壤质量评估数据列表 -->
         <div class="table-container">
-            <el-table :data="filteredEvaluations" style="width: 100%" border stripe class="custom-table">
+            <el-table 
+                v-loading="loading"
+                :data="filteredEvaluations" 
+                style="width: 100%" 
+                border 
+                stripe 
+                class="custom-table"
+                element-loading-text="数据加载中..."
+                element-loading-background="rgba(255, 255, 255, 0.7)"
+            >
                 <el-table-column type="index" label="序号" width="60" align="center" />
                 <el-table-column prop="monitoringPoint" label="监测点名称" min-width="150" />
                 <el-table-column prop="location" label="位置" min-width="150" />
@@ -218,10 +227,11 @@
 </template>
 
 <script>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
+import { getSoilQualityEvaluationList, addSoilQualityEvaluation, updateSoilQualityEvaluation, deleteSoilQualityEvaluation, getBaseOptions } from '@/api/SoilQuality'
 
 export default {
     name: 'QualityEvaluation',
@@ -232,25 +242,10 @@ export default {
     },
     setup() { // 在这里定义组件逻辑和数据
         // 基地选项
-        const areas = [
-            { label: '北莲', value: '北莲' },
-            { label: '莲花岛', value: '莲花岛' },
-            { label: '马村', value: '马村' }
-        ]
+        const areas = ref([]) // 基地选项
         
         // 监测点选项
-        const monitoringPoints = [
-            { label: '北莲资4号监测点', value: '北莲资4号监测点', location: '北莲资4号监测点' },
-            { label: '地块一基地', value: '地块一基地', location: '李四' },
-            { label: '北莲资1号监测点', value: '北莲资1号监测点', location: '北莲资1号监测点' },
-            { label: '莲花岛测点2', value: '莲花岛测点2', location: '莲花岛测点2' },
-            { label: '莲花岛测点1', value: '莲花岛测点1', location: '莲花岛测点1' },
-            { label: '北莲资2号监测点', value: '北莲资2号监测点', location: '北莲资2号监测点' },
-            { label: '北莲资3号监测点', value: '北莲资3号监测点', location: '北莲资3号监测点' },
-            { label: 'Test', value: 'Test', location: 'Test' },
-            { label: '马村监测点2', value: '马村监测点2', location: '马村监测点2' },
-            { label: '马村监测点1', value: '马村监测点1', location: '马村监测点1' }
-        ]
+        const monitoringPoints = ref([]) 
         
         // 筛选条件
         const selectedArea = ref('')
@@ -260,13 +255,13 @@ export default {
         // 分页相关
         const currentPage = ref(1)
         const pageSize = ref(10)
-        const totalItems = computed(() => filteredData.value.length) // 修正：totalItems 应该基于整体过滤后的数据
+        const totalItems = ref(0) // 总条数
         
         // 对话框相关 (新增评估)
         const dialogVisible = ref(false)
         const evaluationFormRef = ref(null)
 
-        // 新增：查看详情对话框相关
+        // 查看详情对话框相关
         const detailDialogVisible = ref(false)
         const detailFormRef = ref(null)
         const detailForm = reactive({
@@ -275,28 +270,15 @@ export default {
             qualityLevel: ''
         })
         
-        // 过滤后的数据 (表格使用)
-        const filteredData = computed(() => { // 将 filteredEvaluations 重命名为 filteredData，避免重复声明
-            let result = evaluations.value
-            
-            // 基地筛选
-            if (selectedArea.value) {
-                result = result.filter(item => item.monitoringPoint.includes(selectedArea.value))
-            }
-            
-            // 监测点名称筛选
-            if (searchText.value) {
-                result = result.filter(item => item.monitoringPoint.includes(searchText.value))
-            }
-            
-            // 耕地质量等级筛选
-            if (selectedQuality.value) {
-                result = result.filter(item => item.qualityLevel === selectedQuality.value)
-            }
-            
-            return result
-        })
-
+        // 历史评估记录对话框相关
+        const historyDialogVisible = ref(false)
+        const currentMonitoringPoint = ref('')
+        const historyRecords = ref([])
+        
+        // 评估数据 - 初始化为空数组
+        const evaluations = ref([])
+        
+        
         // 表单数据
         const evaluationForm = reactive({
             id: '',
@@ -313,7 +295,7 @@ export default {
             evaluationDate: [{ required: true, message: '请选择评定日期', trigger: 'change' }]
         }
 
-        // 新增：查看详情表单的重置逻辑 (如果需要)
+        // 查看详情表单的重置逻辑
         const resetDetailForm = () => {
             if (detailFormRef.value) {
                 detailFormRef.value.resetFields();
@@ -323,122 +305,25 @@ export default {
             detailForm.qualityLevel = '';
         }
         
-        // 模拟评估数据
-        const evaluations = ref([
-            {
-                id: 1,
-                monitoringPoint: '北莲资4号监测点',
-                location: '北莲资4号监测点',
-                qualityLevel: '3',
-                evaluationDate: '2025-03-26 15:18:31'
-            },
-            {
-                id: 2,
-                monitoringPoint: '地块一基地',
-                location: '李四',
-                qualityLevel: '10',
-                evaluationDate: '2025-03-20 14:26:01'
-            },
-            {
-                id: 3,
-                monitoringPoint: '北莲资1号监测点',
-                location: '北莲资1号监测点',
-                qualityLevel: '15',
-                evaluationDate: '2024-11-17 16:13:19'
-            },
-            {
-                id: 4,
-                monitoringPoint: '莲花岛测点2',
-                location: '莲花岛测点2',
-                qualityLevel: '4',
-                evaluationDate: '2024-11-17 16:13:12'
-            },
-            {
-                id: 5,
-                monitoringPoint: '莲花岛测点1',
-                location: '莲花岛测点1',
-                qualityLevel: '5',
-                evaluationDate: '2024-11-17 16:12:46'
-            },
-            {
-                id: 6,
-                monitoringPoint: '北莲资2号监测点',
-                location: '北莲资2号监测点',
-                qualityLevel: '6',
-                evaluationDate: '2024-10-15 10:25:30'
-            },
-            {
-                id: 7,
-                monitoringPoint: '北莲资3号监测点',
-                location: '北莲资3号监测点',
-                qualityLevel: '7',
-                evaluationDate: '2024-10-10 09:15:20'
-            },
-            {
-                id: 8,
-                monitoringPoint: 'Test',
-                location: 'Test',
-                qualityLevel: '8',
-                evaluationDate: '2024-09-25 14:30:45'
-            },
-            {
-                id: 9,
-                monitoringPoint: '马村监测点2',
-                location: '马村监测点2',
-                qualityLevel: '9',
-                evaluationDate: '2024-09-20 11:20:15'
-            },
-            {
-                id: 10,
-                monitoringPoint: '马村监测点1',
-                location: '马村监测点1',
-                qualityLevel: '2',
-                evaluationDate: '2024-09-15 16:45:30'
-            },
-            {
-                id: 11,
-                monitoringPoint: '测试点',
-                location: '测试位置',
-                qualityLevel: '1',
-                evaluationDate: '2024-09-10 10:10:10'
-            },
-            {
-                id: 12,
-                monitoringPoint: '测试点2',
-                location: '测试位置2',
-                qualityLevel: '10',
-                evaluationDate: '2024-08-25 15:30:00'
-            },
-            {
-                id: 13,
-                monitoringPoint: '测试点3',
-                location: '测试位置3',
-                qualityLevel: '5',
-                evaluationDate: '2024-07-15 12:00:00'
-            },
-            {
-                id: 14,
-                monitoringPoint: '测试点4',
-                location: '测试位置4',
-                qualityLevel: '8',
-                evaluationDate: '2024-06-05 09:00:00'
-
-            }
-
-        ])
-        
         // 根据筛选条件过滤评估数据
-        const filteredEvaluationsData = computed(() => { // 重命名此处的 filteredData
-            let result = evaluations.value
-            
-            // 按基地筛选
-            if (selectedArea.value) {
-                result = result.filter(item => item.monitoringPoint.includes(selectedArea.value))
+        const filteredEvaluationsData = computed(() => {
+            if (!evaluations.value || !Array.isArray(evaluations.value)) {
+                return []
             }
             
-            // 按监测点名称搜索
+            let result = [...evaluations.value]
+            
+            // 基地筛选
+            if (selectedArea.value) {
+                result = result.filter(item => 
+                    item && item.monitoringPoint && item.monitoringPoint.includes(selectedArea.value)
+                )
+            }
+            
+            // 监测点名称筛选
             if (searchText.value) {
                 result = result.filter(item => 
+                    item && item.monitoringPoint && 
                     item.monitoringPoint.toLowerCase().includes(searchText.value.toLowerCase())
                 )
             }
@@ -448,7 +333,7 @@ export default {
         
         // 计算总条数
         const totalFilteredItems = computed(() => {
-            return filteredEvaluationsData.value.length // 更新依赖
+            return filteredEvaluationsData.value.length
         })
         
         // 更新总条数
@@ -461,12 +346,12 @@ export default {
             const startIndex = (currentPage.value - 1) * pageSize.value
             const endIndex = startIndex + pageSize.value
             
-            return filteredEvaluationsData.value.slice(startIndex, endIndex) // 更新依赖
+            return filteredEvaluationsData.value.slice(startIndex, endIndex)
         })
         
         // 监听监测点选择变化，自动填充位置
         watch(() => evaluationForm.monitoringPoint, (newVal) => {
-            const selectedPoint = monitoringPoints.find(point => point.value === newVal)
+            const selectedPoint = monitoringPoints.value.find(point => point.value === newVal)
             if (selectedPoint) {
                 evaluationForm.location = selectedPoint.location
             }
@@ -475,13 +360,86 @@ export default {
         // 根据质量等级返回对应的标签类型
         const getQualityLevelType = (level) => {
             const numLevel = parseInt(level)
-            if (numLevel <= 3) return 'success'
-            if (numLevel <= 6) return ''
-            if (numLevel <= 9) return 'warning'
+            if (numLevel <= 4) return 'success'
+            if (numLevel <= 8) return ''
+            if (numLevel <= 12) return 'warning'
             return 'danger'
         }
         
-
+        // 获取基地选项
+        const fetchBaseOptions = async () => {
+            try {
+                const res = await getBaseOptions()
+                if (res.code === 200) {
+                    // 将获取的基地选项赋值给 areas
+                    areas.value = res.data
+                }else {
+                    ElMessage.error(res.message || '获取基地选项失败')
+                }
+            } catch (error) {
+                ElMessage.error('获取基地选项失败'),
+                console.error('获取基地选项失败:', error)
+            }
+        }
+        
+        // 获取监测点选项
+        const fetchMonitoringPoints = async () => {
+            try {
+                const res = await getSoilQualityEvaluationList()
+                if (res.code === 200) {
+                    console.log("response:"+res.data.records)
+                    monitoringPoints.value = res.data.records.map(item => ({
+                        label: item.pointName,
+                        value: item.evaluationId,
+                        location: item.location
+                    }))
+                }
+            } catch (error) {
+                ElMessage.error('获取监测点选项失败'),
+                console.error('获取监测点选项失败:', error)
+            }
+        }
+        
+        // 加载状态
+        const loading = ref(false)
+        
+        // 获取土壤质量评估列表
+        const fetchSoilQualityEvaluations = async () => { // 移除多余的括号
+            loading.value = true
+            try {
+                const params = {
+                    baseId: selectedArea.value,
+                    keyword: searchText.value,
+                    pageNum: currentPage.value,
+                    pageSize: pageSize.value
+                }
+                
+                getSoilQualityEvaluationList(params).then(res => {
+                    if (res.code === 200) {
+                        evaluations.value = res.data.list || []
+                        totalItems.value = res.data.total || 0
+                    } else { 
+                        ElMessage.error(res.message || '获取土壤质量评估列表失败')
+                    } 
+            }).catch (error => {
+                console.error('获取土壤质量评估列表失败:', error)
+                ElMessage.error('获取评估数据失败')
+                // evaluations.value = []
+            }).finally (() => {
+                loading.value = false
+            })
+            } catch (error) {
+                console.error('获取土壤质量评估列表失败:', error)
+                ElMessage.error('获取评估数据失败')
+            } finally {
+                loading.value = false
+            }
+        }
+        
+        // 处理分页变化
+        const handlePagination = () => {
+            fetchSoilQualityEvaluations()
+        }
         
         // 处理新增评估
         const handleAddEvaluation = () => {
@@ -504,88 +462,137 @@ export default {
             detailForm.qualityLevel = row.qualityLevel;
             detailDialogVisible.value = true;
         }
-
-        // 提交详情评估
-        const submitDetailEvaluation = () => {
-            if (!detailForm.qualityLevel) {
-                ElMessage.warning('请选择质量等级');
-                return;
-            }
-
-            // 更新评估数据
-            const index = evaluations.value.findIndex(item => item.id === detailForm.id);
-            if (index !== -1) {
-                evaluations.value[index].qualityLevel = detailForm.qualityLevel;
-                ElMessage.success('评估更新成功');
-                detailDialogVisible.value = false;
-            }
-        }
         
-        // 历史评估记录相关
-        const historyDialogVisible = ref(false)
-        const historyRecords = ref([])
-        const currentMonitoringPoint = ref('')
-
-        // 显示历史评估记录
+        // 处理查看历史记录
         const handleShowHistory = (row) => {
             currentMonitoringPoint.value = row.monitoringPoint
-            // 这里应该调用API获取历史记录，暂时使用模拟数据
+            // 这里可以添加获取历史记录的接口调用
+            // 暂时使用模拟数据
             historyRecords.value = [
                 {
-                    evaluationDate: '2023-01-15',
+                    evaluationDate: '2024-03-15',
                     qualityLevel: '3',
                     evaluator: '张三',
-                    notes: '土壤质量良好'
+                    notes: '土壤肥沃，适合种植'
                 },
                 {
-                    evaluationDate: '2022-12-10',
-                    qualityLevel: '10',
+                    evaluationDate: '2023-10-20',
+                    qualityLevel: '5',
                     evaluator: '李四',
-                    notes: '需要适量施肥'
-                },
-                {
-                    evaluationDate: '2022-11-05',
-                    qualityLevel: '15',
-                    evaluator: '王五',
-                    notes: '土壤养分不足'
+                    notes: '土壤质量一般'
                 }
             ]
             historyDialogVisible.value = true
         }
         
+        // 处理删除
+        const handleDelete = (row) => {
+            ElMessageBox.confirm(
+                `确定要删除 ${row.monitoringPoint} 的评估记录吗？`,
+                '提示',
+                {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }
+            ).then(async () => {
+                try {
+                    const res = await deleteSoilQualityEvaluation(row.id)
+                    if (res.code === 200) {
+                        ElMessage.success('删除成功')
+                        fetchSoilQualityEvaluations()
+                    } else {
+                        ElMessage.error(res.message || '删除失败')
+                    }
+                } catch (error) {
+                    console.error('删除失败:', error)
+                    ElMessage.error('删除失败')
+                }
+            }).catch(() => {
+                // 取消删除
+            })
+        }
+        
         // 提交评估表单
         const submitEvaluation = () => {
-            evaluationFormRef.value.validate((valid) => {
+            evaluationFormRef.value.validate(async (valid) => {
                 if (valid) {
-                    // 模拟添加新评估
-                    const newEvaluation = {
-                        id: evaluations.value.length + 1,
-                        monitoringPoint: evaluationForm.monitoringPoint,
-                        location: evaluationForm.location,
-                        qualityLevel: evaluationForm.qualityLevel,
-                        evaluationDate: evaluationForm.evaluationDate
+                    try {
+                        const data = {
+                            monitoringPoint: evaluationForm.monitoringPoint,
+                            location: evaluationForm.location,
+                            qualityLevel: evaluationForm.qualityLevel,
+                            evaluationDate: evaluationForm.evaluationDate
+                        }
+                        
+                        const res = await addSoilQualityEvaluation(data)
+                        if (res.code === 200) {
+                            ElMessage.success('评估添加成功')
+                            dialogVisible.value = false
+                            fetchSoilQualityEvaluations()
+                        } else {
+                            ElMessage.error(res.message || '评估添加失败')
+                        }
+                    } catch (error) {
+                        console.error('评估添加失败:', error)
+                        ElMessage.error('评估添加失败')
                     }
-                    
-                    evaluations.value.unshift(newEvaluation)
-                    dialogVisible.value = false
-                    ElMessage.success('评估添加成功')
                 } else {
                     return false
                 }
             })
         }
         
+        // 提交详情评估（更新质量等级）
+        const submitDetailEvaluation = async () => {
+            if (!detailForm.qualityLevel) {
+                ElMessage.warning('请选择质量等级');
+                return;
+            }
+            
+            try {
+                const data = {
+                    id: detailForm.id,
+                    qualityLevel: detailForm.qualityLevel
+                }
+                
+                const res = await updateSoilQualityEvaluation(data)
+                if (res.code === 200) {
+                    ElMessage.success('质量等级更新成功')
+                    detailDialogVisible.value = false
+                    fetchSoilQualityEvaluations()
+                } else {
+                    ElMessage.error(res.message || '质量等级更新失败')
+                }
+            } catch (error) {
+                console.error('质量等级更新失败:', error)
+                ElMessage.error('质量等级更新失败')
+            }
+        }
+        
+        // 组件挂载时获取数据
+        onMounted(() => {
+            fetchBaseOptions()
+            fetchMonitoringPoints()
+            fetchSoilQualityEvaluations()
+        })
+        
+        // 监听筛选条件变化，重新获取数据
+        watch([selectedArea, searchText], () => {
+            currentPage.value = 1 // 重置页码
+            fetchSoilQualityEvaluations()
+        })
+        
         return {
             areas,
-            monitoringPoints, // 保留这个
+            monitoringPoints,
             selectedArea,
             searchText,
-            selectedQuality, // 确保导出
+            selectedQuality,
             currentPage,
             pageSize,
             totalItems,
-            filteredEvaluations, // Table uses paginatedEvaluations
-            // paginatedEvaluations, // 确保此项用于表格数据绑定 - 此处注释掉，因为filteredEvaluations已经承担了分页数据的角色
+            filteredEvaluations,
             dialogVisible,
             evaluationForm,
             evaluationFormRef,
@@ -593,16 +600,18 @@ export default {
             handleAddEvaluation,
             submitEvaluation,
             handleViewDetail,
-            // handlePagination,
+            handleDelete,
+            handlePagination,
             getQualityLevelType,
-            // monitoringPoints, // 移除这个重复的导出
-            // 新增导出
+            // 详情对话框
             detailDialogVisible,
             detailForm,
             detailFormRef,
             submitDetailEvaluation,
             resetDetailForm,
+            // 历史记录对话框
             historyDialogVisible,
+            currentMonitoringPoint,
             historyRecords,
             handleShowHistory
         }
