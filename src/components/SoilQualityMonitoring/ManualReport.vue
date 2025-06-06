@@ -2,7 +2,7 @@
     <div class="manual-container">
         <!-- 顶部操作栏 -->
         <div class="operation-bar">
-            <el-select v-model="selectedArea" placeholder="基地" clearable>
+            <el-select v-model="selectedArea" placeholder="基地" class="base-select" >
                 <el-option label="全部" value=""></el-option>
                 <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
             </el-select>
@@ -696,15 +696,27 @@ export default {
 
 <style scoped>
 .manual-container {
+    border-radius:12px ;
     padding: 20px;
+    background-color: #f8fafc;
+
 }
 
 .operation-bar {
     margin-bottom: 20px;
     display: flex;
     gap: 16px;
+    justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    background-color: #ffffff;
+    
+}
+
+.base-select {
+    width: 20%;
 }
 
 .search-input {

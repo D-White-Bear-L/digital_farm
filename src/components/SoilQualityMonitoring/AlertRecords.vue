@@ -211,6 +211,8 @@ export default {
 <style scoped>
 .alert-records-container {
     padding: 20px;
+    background-color: #f8fafc;
+
 }
 
 .operation-bar {
@@ -220,7 +222,7 @@ export default {
     align-items: center;
     background-color: #fff;
     padding: 15px;
-    border-radius: 4px;
+    border-radius: 12px;
     box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 

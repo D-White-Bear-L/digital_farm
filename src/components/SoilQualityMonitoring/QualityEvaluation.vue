@@ -4,7 +4,7 @@
         <!-- 顶部操作栏 -->
         <div class="operation-bar">
             <div class="left-filters">
-                <el-select v-model="selectedBase" placeholder="基地" clearable class="base-select">
+                <el-select v-model="selectedBase" placeholder="基地" class="base-select">
                     <el-option label="全部" value=""></el-option>
                     <el-option v-for="base in bases" :key="base.value" :label="base.label" :value="base.value" />
                 </el-select>
@@ -46,6 +46,7 @@
                         <el-tag :type="getQualityLevelType(scope.row.qualityLevel)">{{ scope.row.qualityLevel }}</el-tag>
                     </template>
                 </el-table-column>
+                <el-table-column prop="evaluator" label="评估人" min-width="150" />
                 <el-table-column prop="evaluationDate" label="评定日期" min-width="180" />
                 <el-table-column label="操作" width="200" fixed="right">
                     <template #default="scope">
@@ -307,7 +308,6 @@ export default {
         // 表单数据
         const evaluationForm = reactive({
             pointId: null,
-            monitoringPoint: '',
             location: '',
             qualityLevel: '',
             evaluator: '',
@@ -625,9 +625,13 @@ export default {
 </script>
 
 <style scoped>
-/* .quality-evaluation {
+.quality-evaluation {
+    border-radius:12px ;
+    padding: 20px;
+    background-color: #f8fafc;
 
-} */
+
+}
 
 .operation-bar {
     display: flex;
@@ -636,7 +640,7 @@ export default {
     align-items: center;
     background-color: #fff;
     padding: 15px;
-    border-radius: 4px;
+    border-radius:12px ;
     box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 

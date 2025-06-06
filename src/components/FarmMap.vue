@@ -295,7 +295,7 @@ export default {
         
         try {
           this.map = new this.AMap.Map(this.$refs.mapContainer, {
-            pitch: 45, // 增加俯仰角度，使地图更有立体感
+            pitch: 40, // 增加俯仰角度，使地图更有立体感
             viewMode: '3D', // 地图模式
             rotateEnable: true, // 是否开启地图旋转交互
             pitchEnable: true, // 是否开启地图倾斜交互
@@ -324,8 +324,8 @@ export default {
           // 添加图层切换控件
           this.map.addControl(new this.AMap.MapType({
             defaultType: 1,
-            showRoad: false,
-            showTraffic: false,
+            showRoad: true,
+            showTraffic: true,
             layers: layers
           }));
           

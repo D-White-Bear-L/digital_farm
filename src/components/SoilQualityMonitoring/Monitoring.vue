@@ -2,27 +2,31 @@
     <div class="monitoring-container">
         <!-- 顶部操作栏 -->
         <div class="operation-bar">
-            <el-select v-model="selectedBase" placeholder="基地" clearable @change="handleFilter">
-                <el-option label="全部" value=""></el-option>
-                <el-option v-for="base in bases" :key="base.value" :label="base.label" :value="base.value" />
-            </el-select>
-            
-            <el-input
-                v-model="searchText"
-                placeholder="监测点名称"
-                clearable
-                class="search-input"
-                @clear="handleFilter"
-                @keyup.enter="handleFilter"
-            >
-                <template #prefix>
-                    <el-icon><Search /></el-icon>
-                </template>
-            </el-input>
+            <div class="left-filters">
+   
+                <el-select v-model="selectedBase" placeholder="基地" @change="handleFilter">
+                    <el-option label="全部" value=""></el-option>
+                    <el-option v-for="base in bases" :key="base.value" :label="base.label" :value="base.value" />
+                </el-select>
+                
+                <el-input
+                    v-model="searchText"
+                    placeholder="监测点名称"
+                    clearable
+                    class="search-input"
+                    @clear="handleFilter"
+                    @keyup.enter="handleFilter"
+                >
+                    <template #prefix>
+                        <el-icon><Search /></el-icon>
+                    </template>
+                </el-input>
 
-            <el-button type="success" @click="handleFilter">
-                <el-icon><Search /></el-icon>查询
-            </el-button>
+                <el-button type="success" @click="handleFilter">
+                    <el-icon><Search /></el-icon>查询
+                </el-button>
+            </div>
+
 
             <el-button type="success" @click="handleAddMonitoringPoint">
                 <el-icon><Plus /></el-icon>新增监测点
@@ -30,7 +34,7 @@
         </div>
 
         <!-- 监测点列表 -->
-        <el-table :data="paginatedMonitoringPoints" style="width: 100%" v-loading="loading">
+        <el-table :data="monitoringPoints" style="width: 100%" v-loading="loading">
             <el-table-column type="index" label="序号" width="80" />
             <el-table-column prop="baseName" label="基地" />
             <el-table-column prop="pointName" label="监测点名称" />
@@ -119,7 +123,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted,onUnmounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
@@ -164,8 +168,8 @@ export default {
             baseId: '', // 使用baseId而不是baseName
             pointName: '',
             location: '',
-            // longitude: null,
-            // latitude: null,
+            longitude: null,
+            latitude: null,
             imageUrl: '',
             create_time: null,
         })
@@ -199,8 +203,11 @@ export default {
 
             getMonitoring(params).then(res => {
                 if (res.code === 200) {
-                    monitoringPoints.value = res.data.list || []
-                    totalItems.value = res.data.total || 0
+                    // 使用 nextTick 确保 DOM 更新完成后再更新数据
+                    nextTick(() => {
+                        monitoringPoints.value = res.data.list || []
+                        totalItems.value = res.data.total || 0
+                    })
                 } else {
                     ElMessage.error(res.message || '获取监测点数据失败')
                 }
@@ -215,12 +222,8 @@ export default {
         // 监听筛选条件变化
         const handleFilter = () => {
             currentPage.value = 1 // 重置到第一页
-
             fetchMonitoringPoints()
         }
-
-        // 分页后的监测点列表
-        const paginatedMonitoringPoints = computed(() => monitoringPoints.value)
 
         // 处理新增监测点
         const handleAddMonitoringPoint = () => {
@@ -346,7 +349,7 @@ export default {
             dialogVisible,
             dialogType,
             monitoringPointForm,
-            paginatedMonitoringPoints,
+            monitoringPoints, // 直接使用 monitoringPoints 而不是 paginatedMonitoringPoints
             handleAddMonitoringPoint,
             handleEdit,
             handleDelete,
@@ -364,13 +367,28 @@ export default {
 
 <style scoped>
 .monitoring-container {
+    border-radius:12px ;
     padding: 20px;
+    background-color: #f8fafc;
+
+}
+
+.left-filters {
+    width: 50%;
+    display: flex;
+    gap: 15px;
 }
 
 .operation-bar {
     margin-bottom: 20px;
     display: flex;
     gap: 16px;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #fff;
+    padding: 15px;
+    border-radius:12px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 
 .search-input {

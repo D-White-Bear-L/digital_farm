@@ -717,7 +717,8 @@ export default {
 
 <style scoped>
 .data-analysis-container {
-  padding: 24px;
+  border-radius:12px ;
+  padding: 20px;
   background-color: #f8fafc;
   min-height: calc(100vh - 120px);
   color: #2c3e50;
