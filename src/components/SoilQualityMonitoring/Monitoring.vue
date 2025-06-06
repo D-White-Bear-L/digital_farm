@@ -2,9 +2,9 @@
     <div class="monitoring-container">
         <!-- 顶部操作栏 -->
         <div class="operation-bar">
-            <el-select v-model="selectedArea" placeholder="基地" clearable @change="handleFilter">
+            <el-select v-model="selectedBase" placeholder="基地" clearable @change="handleFilter">
                 <el-option label="全部" value=""></el-option>
-                <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
+                <el-option v-for="base in bases" :key="base.value" :label="base.label" :value="base.value" />
             </el-select>
             
             <el-input
@@ -81,7 +81,7 @@
                 <el-form-item label="基地">
                     <!-- 修改选择器为id -->
                     <el-select v-model="monitoringPointForm.baseId" placeholder="请选择基地"> 
-                        <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
+                        <el-option v-for="base in bases" :key="base.value" :label="base.label" :value="base.value" />
                     </el-select>
                 </el-form-item>
                 <el-form-item label="监测点名称">
@@ -144,17 +144,17 @@ export default {
         const totalItems = ref(0)
 
         // 分页逻辑
-        const handlePagination = debounce(({page, limit}) => {
+        const handlePagination = debounce(({page, limit}) => { // debounce 防抖动函数:节流
             currentPage.value = page
             pageSize.value = limit
             fetchMonitoringPoints()
         }, 100)
 
         // 基地选项
-        const areas = ref([])
+        const bases = ref([])
 
         // 状态数据
-        const selectedArea = ref(null) // 当前选中的基地
+        const selectedBase = ref(null) // 当前选中的基地
         const searchText = ref('') // 搜索文本
         const dialogVisible = ref(false) // 对话框可见性
         const dialogType = ref('add') // 对话框类型
@@ -177,7 +177,7 @@ export default {
         const fetchBaseOptions = () => {
             getBaseOptions().then(res => {
                 if (res.code === 200) {
-                    areas.value = res.data
+                    bases.value = res.data
                 } else {
                     ElMessage.error(res.message || '获取基地选项失败')
                 }
@@ -193,7 +193,7 @@ export default {
             const params = {
                 pageNum: currentPage.value, // 当前页码
                 pageSize: pageSize.value, // 每页数量
-                baseId: selectedArea.value === "" ? null : selectedArea.value, // 基地ID，空字符串转为null
+                baseId: selectedBase.value === "" ? null : selectedBase.value, // 基地ID，空字符串转为null
                 keyword: searchText.value === "" ? null : searchText.value // 搜索关键字，空字符串转为null
             }
 
@@ -340,8 +340,8 @@ export default {
 
         return {
             loading,
-            areas,
-            selectedArea,
+            bases,
+            selectedBase,
             searchText,
             dialogVisible,
             dialogType,

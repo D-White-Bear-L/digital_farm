@@ -4,9 +4,9 @@
         <!-- 顶部操作栏 -->
         <div class="operation-bar">
             <div class="left-filters">
-                <el-select v-model="selectedArea" placeholder="基地" clearable class="area-select">
+                <el-select v-model="selectedBase" placeholder="基地" clearable class="base-select">
                     <el-option label="全部" value=""></el-option>
-                    <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
+                    <el-option v-for="base in bases" :key="base.value" :label="base.label" :value="base.value" />
                 </el-select>
                 
                 <el-input
@@ -30,7 +30,7 @@
         <div class="table-container">
             <el-table 
                 v-loading="loading"
-                :data="filteredEvaluations" 
+                :data="evaluations" 
                 style="width: 100%" 
                 border 
                 stripe 
@@ -114,7 +114,7 @@
                 </el-form-item>
 
                 <el-form-item label="备注" prop="remarks">
-                    <el-input v-model="evaluationForm.remarks" type="textarea" :rows="4" placeholder="请输入备注" />
+                    <el-input v-model="evaluationForm.remarks" type="textbase" :rows="4" placeholder="请输入备注" />
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -251,11 +251,12 @@
 </template>
 
 <script>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
-import { getSoilQualityEvaluationList, addSoilQualityEvaluation, updateSoilQualityEvaluation, deleteSoilQualityEvaluation, getBaseOptions,getMonitoringPointOptions } from '@/api/SoilQuality'
+import { getSoilQualityEvaluationList, addSoilQualityEvaluation, updateSoilQualityEvaluation, deleteSoilQualityEvaluation, getBaseOptions, getMonitoringPointOptions } from '@/api/SoilQuality'
+import { debounce } from 'lodash' // 添加 lodash 的 debounce 导入
 
 export default {
     name: 'QualityEvaluation',
@@ -266,13 +267,13 @@ export default {
     },
     setup() { // 在这里定义组件逻辑和数据
         // 基地选项
-        const areas = ref([]) // 基地选项
+        const bases = ref([]) // 基地选项
         
         // 监测点选项
         const monitoringPoints = ref([]) 
         
         // 筛选条件
-        const selectedArea = ref('')
+        const selectedBase = ref('')
         const searchText = ref('')
         const selectedQuality = ref('') // 添加缺失的质量等级筛选变量
         
@@ -330,44 +331,6 @@ export default {
             detailForm.qualityLevel = '';
         }
         
-        // 根据筛选条件过滤评估数据
-        const filteredEvaluationsData = computed(() => {
-            if (!evaluations.value || !Array.isArray(evaluations.value)) {
-                return []
-            }
-            
-            let result = [...evaluations.value]
-
-            
-            // 监测点名称筛选
-            if (searchText.value) {
-                result = result.filter(item => 
-                    item && item.monitoringPoint && 
-                    item.monitoringPoint.toLowerCase().includes(searchText.value.toLowerCase())
-                )
-            }
-            
-            return result
-        })
-        
-        // 计算总条数
-        const totalFilteredItems = computed(() => {
-            return filteredEvaluationsData.value.length
-        })
-        
-        // 更新总条数
-        watch(totalFilteredItems, (newValue) => {
-            totalItems.value = newValue
-        }, { immediate: true })
-        
-        // 分页后的数据
-        const filteredEvaluations = computed(() => {
-            const startIndex = (currentPage.value - 1) * pageSize.value
-            const endIndex = startIndex + pageSize.value
-            
-            return filteredEvaluationsData.value.slice(startIndex, endIndex)
-        })
-        
         // 监听监测点选择变化，自动填充位置和设置pointId
         watch(() => evaluationForm.monitoringPoint, (newVal) => {
             const selectedPoint = monitoringPoints.value.find(point => point.value === newVal)
@@ -394,8 +357,8 @@ export default {
             try {
                 const res = await getBaseOptions()
                 if (res.code === 200) {
-                    // 将获取的基地选项赋值给 areas
-                    areas.value = res.data
+                    // 将获取的基地选项赋值给 bases
+                    bases.value = res.data
                 }else {
                     ElMessage.error(res.message || '获取基地选项失败')
                 }
@@ -409,14 +372,14 @@ export default {
         const fetchMonitoringPoints = async () => {
             try {
                 const res = await getMonitoringPointOptions()
-                console.log('监测点数据返回:', res) // 添加这行调试代码
+                // console.log('监测点数据返回:', res.data) // 添加这行调试代码 test
                 if (res.code === 200) {
                     monitoringPoints.value = res.data.list.map(item => ({ // 返回的是data.list
                         label: item.pointName,
                         value: item.pointId,
-                        location: item.location || '',
+                        // location: item.location || '',
                     }))
-                    console.log('处理后的监测点数据:', monitoringPoints.value) // 添加这行调试代码
+                    // console.log('处理后的监测点数据:', monitoringPoints.value) // 添加这行调试代码
                 } else {
                     ElMessage.error(res.message || '获取监测点选项失败')
                 }
@@ -435,30 +398,28 @@ export default {
             loading.value = true
             try {
                 const params = {
-                    baseId: selectedArea.value,
+                    baseId: selectedBase.value,
                     keyword: searchText.value,
                     pageNum: currentPage.value,
                     pageSize: pageSize.value
                 }
                 
+                // console.log('发送分页请求参数:', params) // 添加调试日志 test
+                
                 const res = await getSoilQualityEvaluationList(params)
                 if (res.code === 200) {
-                    // 将后端返回的数据转换为前端需要的格式
+                    // 直接使用后端返回的数据
                     evaluations.value = (res.data.list || []).map(item => ({
                         ...item,
                         id: item.evaluationId, // 将 evaluationId 映射为 id
                         monitoringPoint: item.pointName || `监测点${item.pointId}` // 如果 pointName 为 null，则使用 pointId 代替
+
                     }))
                     totalItems.value = res.data.total || 0
-                    
-                    // 如果后端返回的是records而不是list
-                    if (!res.data.list && res.data.records) {
-                        evaluations.value = (res.data.records || []).map(item => ({
-                            ...item,
-                            id: item.evaluationId,
-                            monitoringPoint: item.pointName || `监测点${item.pointId}`
-                        }))
-                    }
+
+                    // test
+                    // console.log('获取到的评估数据:', evaluations.value)
+                    // console.log('总条数:', totalItems.value)
                 } else { 
                     ElMessage.error(res.message || '获取土壤质量评估列表失败')
                 }
@@ -471,9 +432,11 @@ export default {
         }
         
         // 处理分页变化
-        const handlePagination = () => {
+        const handlePagination = debounce(({page, limit}) => { // 添加 debounce 防抖动
+            currentPage.value = page
+            pageSize.value = limit
             fetchSoilQualityEvaluations()
-        }
+        }, 100)
         
         // 处理新增评估
         const handleAddEvaluation = () => {
@@ -620,21 +583,21 @@ export default {
         })
         
         // 监听筛选条件变化，重新获取数据
-        watch([selectedArea, searchText], () => {
+        watch([selectedBase, searchText], () => {
             currentPage.value = 1 // 重置页码
             fetchSoilQualityEvaluations()
         })
         
         return {
-            areas,
+            bases,
             monitoringPoints,
-            selectedArea,
+            selectedBase,
             searchText,
             selectedQuality,
             currentPage,
             pageSize,
             totalItems,
-            filteredEvaluations,
+            evaluations,
             dialogVisible,
             evaluationForm,
             evaluationFormRef,
@@ -682,7 +645,7 @@ export default {
     gap: 15px;
 }
 
-.area-select {
+.base-select {
     width: 150px;
 }
 
