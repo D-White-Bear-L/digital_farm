@@ -115,7 +115,7 @@
           <i class="el-icon-arrow-right"></i>
         </div>
         
-        <div class="security-item" @click="showLoginHistoryDialog = true">
+        <!-- <div class="security-item" @click="showLoginHistoryDialog = true">
           <div class="security-item-title">
             <i class="el-icon-time"></i>
             <span>登录历史</span>
@@ -124,7 +124,7 @@
             <span>查看近期登录记录，发现异常及时处理</span>
           </div>
           <i class="el-icon-arrow-right"></i>
-        </div>
+        </div> -->
       </div>
     </el-card>
     
