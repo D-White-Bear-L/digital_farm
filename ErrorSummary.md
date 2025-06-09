@@ -138,7 +138,84 @@
 
 通过以上步骤，数字农场系统的登录注册功能已实现稳定对接，用户体验大幅提升。
 
-## 4. 总结与建议
+## 4. Spring Security拦截与接口403问题
+
+### 问题描述
+系统升级为JWT登录认证后，前端访问部分接口（如监测点、基地选项、土壤质量评估等）出现403 Forbidden，数据无法获取。
+
+### 问题原因
+- Spring Security默认只放行 `/api/login` 和 `/api/register`，其余接口都需要带有效的JWT token。
+- 前端请求未带token或token无效时，接口被拦截。
+- CORS配置不当时，预检请求（OPTIONS）也可能被拦截，导致跨域失败。
+【这个是个权限问题，一是登录接口和注册接口不需要token，二是其他接口都需要带token；二是CORS配置不时时，预检请求也会被拦截，导致跨域失败。这个就是就是对用户的权限问题。】
+
+### 解决方案
+
+#### 1. 前端请求自动带token
+在axios请求拦截器中自动加上token：
+```js
+request.interceptors.request.use(function (config) {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers['Authorization'] = 'Bearer ' + token
+  }
+  return config
+})
+```
+
+#### 2. 后端SecurityConfig配置CORS
+确保SecurityConfig中允许CORS，并有全局CorsFilter：
+```java
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http
+        .cors(withDefaults())
+        .csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/login", "/api/register").permitAll()
+            .anyRequest().authenticated()
+        )
+        .addFilterBefore(new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+        .formLogin(form -> form.disable())
+        .httpBasic(basic -> basic.disable());
+    return http.build();
+}
+
+@Bean
+public CorsFilter corsFilter() {
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    CorsConfiguration config = new CorsConfiguration();
+    config.setAllowCredentials(true);
+    config.addAllowedOriginPattern("*");
+    config.addAllowedHeader("*");
+    config.addAllowedMethod("*");
+    source.registerCorsConfiguration("/**", config);
+    return new CorsFilter(source);
+}
+```
+
+#### 3. 部分接口无需登录可访问
+如需让部分接口（如基础数据、选项等）无需登录即可访问，可在SecurityConfig中permitAll：
+```java
+.authorizeHttpRequests(auth -> auth
+    .requestMatchers("/api/login", "/api/register", "/api/monitoring/base-options", "/api/monitoring/list").permitAll()
+    .anyRequest().authenticated()
+)
+```
+
+#### 4. CORS预检请求被拦截
+- 必须保证CORS配置在SecurityFilterChain和全局都生效。
+- 推荐用 `.cors(withDefaults())` 并配合全局CorsFilter。
+
+### 步骤总结
+1. 前端所有请求自动带token。
+2. 后端SecurityConfig允许CORS并配置全局CorsFilter。
+3. 需要开放的接口在SecurityConfig中permitAll。
+4. 用浏览器Network面板确认请求头、响应头、状态码，逐步排查。
+
+通过以上措施，数字农场系统的接口安全性和前后端分离体验都得到了保障，常见的403、跨域、token失效等问题均可快速定位和修复。
+
+## 5. 总结与建议
 
 ### 开发建议
 
