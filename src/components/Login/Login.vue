@@ -99,6 +99,7 @@
 
 <script>
 import { login, register } from '@/api/login'
+import { ElMessage } from 'element-plus'
 
 export default {
   name: 'LoginPage',
@@ -190,60 +191,46 @@ export default {
     },
     
     async handleLogin() {
-      if (this.isLoading) return
+      if (this.hasErrors) return
+      
+      this.isLoading = true
       try {
-        this.isLoading = true
-        const res = await login({
-          username: this.loginForm.username,
-          password: this.loginForm.password
-        })
+        const res = await login(this.loginForm)
         if (res.code === 200) {
-          const userData = {
-            token: res.data.token,
-            userInfo: res.data.userInfo
-          }
-          // 将token和userInfo存储到localStorage中，这样在其他页面也可以获取到，安全守卫才会放行
+          // 存储token
           localStorage.setItem('token', res.data.token)
+          // 存储用户信息
           localStorage.setItem('userInfo', JSON.stringify(res.data.userInfo))
-          if (this.loginForm.remember) {
-            localStorage.setItem('rememberUser', this.loginForm.username)
-          } else {
-            localStorage.removeItem('rememberUser')
-          }
-          this.$emit('login-success', userData)
+          
+          ElMessage.success('登录成功')
+          // 跳转到首页
           this.$router.push('/')
         } else {
-          this.$message.error(res.message || '登录失败')
+          ElMessage.error(res.message || '登录失败')
         }
       } catch (error) {
-        this.$message.error('登录失败')
+        console.error('登录错误:', error)
+        ElMessage.error('登录失败，请稍后重试')
       } finally {
         this.isLoading = false
       }
     },
 
     async handleRegister() {
-      if (this.isLoading || this.hasErrors) return
-      this.validateUsername()
-      this.validateEmail()
-      this.validatePassword()
-      this.validateConfirmPassword()
       if (this.hasErrors) return
+      
+      this.isLoading = true
       try {
-        this.isLoading = true
-        const res = await register({
-          username: this.registerForm.username,
-          email: this.registerForm.email,
-          password: this.registerForm.password
-        })
+        const res = await register(this.registerForm)
         if (res.code === 200) {
-          this.$message.success('注册成功，请登录')
+          ElMessage.success('注册成功，请登录')
           this.switchPanel('login')
         } else {
-          this.$message.error(res.message || '注册失败')
+          ElMessage.error(res.message || '注册失败')
         }
       } catch (error) {
-        this.$message.error('注册失败')
+        console.error('注册错误:', error)
+        ElMessage.error('注册失败，请稍后重试')
       } finally {
         this.isLoading = false
       }

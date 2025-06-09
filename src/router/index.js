@@ -3,12 +3,14 @@ import { createRouter, createWebHistory } from 'vue-router'
 // import DevicesList from '@/components/DevicesManage/DevicesList.vue'
 import LayOut from '@/layout.vue'
 import Login from '@/components/Login/Login.vue'
+import { ElMessage } from 'element-plus'
 
 const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: { requiresAuth: false }
   },
   {
     path: '/',
@@ -23,7 +25,8 @@ const routes = [
       {
         path: '/manual-report',
         name: 'ManualReport',
-        component: () => import('@/components/SoilQualityMonitoring/ManualReport.vue')
+        component: () => import('@/components/SoilQualityMonitoring/ManualReport.vue'),
+        meta: { requiresAuth: true }
       },
       {
         path: '/quality-evaluation',
@@ -59,10 +62,12 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫：未登录跳转到登录页
+// 全局前置守卫
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
-  if (to.path !== '/login' && !token) {
+  
+  if (to.meta.requiresAuth && !token) {
+    ElMessage.warning('请先登录')
     next('/login')
   } else if (to.path === '/login' && token) {
     next('/')

@@ -126,28 +126,93 @@ CREATE TABLE AlertRecord (
 ### 8. 用户表 (User)
 
 ```sql
-CREATE TABLE User (
-    user_id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(50) NOT NULL COMMENT '用户名',
-    password VARCHAR(255) NOT NULL COMMENT '密码',
-    real_name VARCHAR(50) COMMENT '真实姓名',
-    role ENUM('admin','manager','user') NOT NULL DEFAULT 'operator' COMMENT '角色',
-    avatar_url VARCHAR(255) COMMENT '用户头像URL',
-    gender ENUM('male','female','other') COMMENT '性别',
-    birthday DATE COMMENT '出生日期',
-    department VARCHAR(50) COMMENT '所属部门',
-    position VARCHAR(50) COMMENT '职位',
-    phone VARCHAR(20) COMMENT '联系电话',
-    email VARCHAR(100) COMMENT '邮箱',
-    address VARCHAR(200) COMMENT '地址',
-    bio TEXT COMMENT '个人简介',
-    last_login DATETIME COMMENT '最后登录时间',
-    login_ip VARCHAR(50) COMMENT '最后登录IP',
-    status ENUM('active','inactive','locked') NOT NULL DEFAULT 'active' COMMENT '账号状态',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+CREATE TABLE IF NOT EXISTS `User` (
+  `user_id` INT AUTO_INCREMENT PRIMARY KEY,
+  `username` VARCHAR(50) NOT NULL UNIQUE,
+  `password` VARCHAR(100) NOT NULL,
+  `real_name` VARCHAR(50),
+  `role` VARCHAR(20) NOT NULL DEFAULT 'user',
+  `avatar_url` VARCHAR(255),
+  `gender` VARCHAR(10),
+  `birthday` DATE,
+  `department` VARCHAR(50),
+  `position` VARCHAR(50),
+  `phone` VARCHAR(20),
+  `email` VARCHAR(100) UNIQUE,
+  `address` VARCHAR(255),
+  `bio` TEXT,
+  `last_login` DATETIME,
+  `login_ip` VARCHAR(50),
+  `status` VARCHAR(20) NOT NULL DEFAULT 'active',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- 创建索引
+CREATE INDEX idx_user_username ON `User` (`username`);
+CREATE INDEX idx_user_email ON `User` (`email`);
+CREATE INDEX idx_user_phone ON `User` (`phone`);
 ```
+
+### 10. 土壤样本全表 (SoilSampleFull)
+```SQL
+CREATE TABLE SoilSampleFull (
+    sample_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '样本ID，自增主键',
+
+    -- 🌱 基础采样信息
+    base_id INT NOT NULL COMMENT '所属基地ID',
+    point_id INT NOT NULL COMMENT '所属监测点ID',
+    soil_sample_no VARCHAR(50) NOT NULL COMMENT '土样编号',
+    soil_type VARCHAR(50) COMMENT '土壤类型',
+    soil_sample_name VARCHAR(50) COMMENT '土样名称',
+    longitude DECIMAL(10,6) COMMENT '经度',
+    latitude DECIMAL(10,6) COMMENT '纬度',
+    sample_depth VARCHAR(20) COMMENT '采样深度(cm)',
+    sample_date DATE NOT NULL COMMENT '采样日期',
+    reporter VARCHAR(50) COMMENT '采样人',
+    phone VARCHAR(20) COMMENT '联系电话',
+    report_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '报告时间',
+
+    -- 🧪 基础理化指标
+    ph DECIMAL(5,2) COMMENT 'pH值',
+    organic_matter DECIMAL(10,2) COMMENT '有机质(g/kg)',
+    water_content DECIMAL(10,2) COMMENT '水分含量(%WW/C)',
+    available_p DECIMAL(10,2) COMMENT '有效磷(mg/kg)',
+    available_k DECIMAL(10,2) COMMENT '速效钾(mg/kg)',
+    available_n DECIMAL(10,2) COMMENT '有效氮(mg/kg)',
+    conductivity DECIMAL(10,2) COMMENT '电导率(mS/cm)',
+
+    -- 🌡 微量元素指标
+    si_value DECIMAL(10,2) COMMENT '硅(mg/kg)',
+    s_value DECIMAL(10,2) COMMENT '硫(mg/kg)',
+    b_value DECIMAL(10,2) COMMENT '硼(mg/kg)',
+    mo_value DECIMAL(10,2) COMMENT '钼(mg/kg)',
+    cl_value DECIMAL(10,2) COMMENT '氯(mg/kg)',
+    ca_value DECIMAL(10,2) COMMENT '钙(mg/kg)',
+    mg_value DECIMAL(10,2) COMMENT '镁(mg/kg)',
+    zn_value DECIMAL(10,2) COMMENT '锌(mg/kg)',
+    cu_value DECIMAL(10,2) COMMENT '铜(mg/kg)',
+    mn_value DECIMAL(10,2) COMMENT '锰(mg/kg)',
+    fe_value DECIMAL(10,2) COMMENT '铁(mg/kg)',
+
+    -- 数据来源
+    data_source ENUM('device', 'manual') NOT NULL DEFAULT 'manual' COMMENT '数据来源：device-设备测量，manual-人工上报',
+
+    -- 🕒 系统字段
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    -- 🔍 索引建议
+    INDEX idx_point (point_id),
+    INDEX idx_sample_date (sample_date),
+    INDEX idx_data_source (data_source),
+    INDEX idx_base_point (base_id, point_id),
+
+    FOREIGN KEY (base_id) REFERENCES Base(base_id),
+    FOREIGN KEY (point_id) REFERENCES MonitoringPoint(point_id)
+) COMMENT='土壤样本完整表，包含基础指标与微量元素';
+```
+
 
 ## 用户头像存储方案(后面可以改成OSS)
 对于用户头像的存储，有两种主要方案：
