@@ -344,7 +344,10 @@
 .farm-selector {
   position: absolute;
   top: 10px;
-  left: 10px;
+  /* 将元素移动到中心位置 */
+  left: 50%;
+  transform: translateX(-50%); 
+  /* 确保元素在地图上可见 */
   z-index: 100;
 }
 

@@ -236,14 +236,14 @@ export default {
       position: '系统管理员',
       phone: '13800138000',
       email: 'admin@example.com',
-      address: '浙江省杭州市',
+      address: '湛江市岭南师范学院',
       bio: '数字农场系统管理员，负责系统维护和用户管理。',
-      last_login: '2023-05-20 14:30:00',
+      last_login: '2025-06-09 14:30:00',
       login_ip: '192.168.1.100',
       status: 'active',
-      create_time: '2023-01-01 00:00:00',
-      update_time: '2023-05-20 14:30:00',
-      password_updated_at: '2023-04-15 10:25:00'
+      create_time: '2025-05-30 00:00:00',
+      update_time: '2025-06-08 14:30:00',
+      password_updated_at: '2025-06-05 10:25:00'
     })
     
     // 编辑状态

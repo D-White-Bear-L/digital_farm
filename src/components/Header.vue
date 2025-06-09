@@ -35,7 +35,7 @@
                     <el-dropdown-menu>
                         <el-dropdown-item @click="navigateTo('/user')">个人信息</el-dropdown-item>
                         <el-dropdown-item @click="navigateTo('/settings')">系统设置</el-dropdown-item>
-                        <el-dropdown-item divided @click="navigateTo('login')">退出登录</el-dropdown-item>
+                        <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
                     </el-dropdown-menu>
                 </template>
             </el-dropdown>
@@ -67,6 +67,12 @@ export default {
             router.push(path)
         }
         
+        const logout = () => {
+            localStorage.removeItem('token')
+            localStorage.removeItem('userInfo')
+            router.push('/login')
+        }
+        
         const currentRouteName = computed(() => {
             return route.meta.title || route.name || ''
         })
@@ -92,7 +98,8 @@ export default {
             currentRouteName,
             currentRoute,
             toggleFullScreen,
-            navigateTo
+            navigateTo,
+            logout
         }
     }
 }

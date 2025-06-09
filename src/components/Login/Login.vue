@@ -98,6 +98,8 @@
 </template>
 
 <script>
+import { login, register } from '@/api/login'
+
 export default {
   name: 'LoginPage',
   data() {
@@ -189,29 +191,32 @@ export default {
     
     async handleLogin() {
       if (this.isLoading) return
-
       try {
         this.isLoading = true
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        const userData = {
-          token: 'mock-token-' + Date.now(),
-          userInfo: {
-            username: this.loginForm.username,
-            role: 'admin'
+        const res = await login({
+          username: this.loginForm.username,
+          password: this.loginForm.password
+        })
+        if (res.code === 200) {
+          const userData = {
+            token: res.data.token,
+            userInfo: res.data.userInfo
           }
+          // 将token和userInfo存储到localStorage中，这样在其他页面也可以获取到，安全守卫才会放行
+          localStorage.setItem('token', res.data.token)
+          localStorage.setItem('userInfo', JSON.stringify(res.data.userInfo))
+          if (this.loginForm.remember) {
+            localStorage.setItem('rememberUser', this.loginForm.username)
+          } else {
+            localStorage.removeItem('rememberUser')
+          }
+          this.$emit('login-success', userData)
+          this.$router.push('/')
+        } else {
+          this.$message.error(res.message || '登录失败')
         }
-        
-        if (this.loginForm.remember) {
-          localStorage.setItem('userToken', userData.token)
-        }
-        
-        this.$emit('login-success', userData)
-        this.$router.push('/')
       } catch (error) {
-        console.error('登录失败:', error)
-        // 这里可以添加错误提示
+        this.$message.error('登录失败')
       } finally {
         this.isLoading = false
       }
@@ -219,26 +224,26 @@ export default {
 
     async handleRegister() {
       if (this.isLoading || this.hasErrors) return
-      
-      // 验证所有字段
       this.validateUsername()
       this.validateEmail()
       this.validatePassword()
       this.validateConfirmPassword()
-      
       if (this.hasErrors) return
-
       try {
         this.isLoading = true
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        // 注册成功后切换到登录面板
-        this.switchPanel('login')
-        // 这里可以添加成功提示
+        const res = await register({
+          username: this.registerForm.username,
+          email: this.registerForm.email,
+          password: this.registerForm.password
+        })
+        if (res.code === 200) {
+          this.$message.success('注册成功，请登录')
+          this.switchPanel('login')
+        } else {
+          this.$message.error(res.message || '注册失败')
+        }
       } catch (error) {
-        console.error('注册失败:', error)
-        // 这里可以添加错误提示
+        this.$message.error('注册失败')
       } finally {
         this.isLoading = false
       }

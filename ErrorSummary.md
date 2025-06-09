@@ -79,7 +79,66 @@
 2. **添加 `z-index` 属性**：为每行设置唯一的 z-index 值，基础值为 9000，加上行索引 `scope.$index`，确保每行的预览层级不同
 3. **添加 `initial-index` 属性**：设置为 0，确保始终显示第一张图片
 
-## 3. 总结与建议
+## 3. 登录注册与前后端对接问题
+
+### 问题描述
+在数字农场系统的登录注册功能开发过程中，遇到了前后端对接、跨域、token存储、路由跳转等一系列问题，导致登录注册流程无法顺利完成。
+
+### 典型问题与解决方法
+
+#### 1. CORS跨域问题
+- **现象**：前端请求被浏览器拦截，控制台报 `No 'Access-Control-Allow-Origin' header is present on the requested resource.`
+- **原因**：前端和后端端口/域名不同，后端未配置CORS。
+- **解决方法**：在Spring Boot后端添加全局CORS配置类，允许前端域名跨域访问。
+  ```java
+  @Configuration
+  public class WebConfig implements WebMvcConfigurer {
+      @Override
+      public void addCorsMappings(CorsRegistry registry) {
+          registry.addMapping("/**")
+              .allowedOriginPatterns("*")
+              .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+              .allowedHeaders("*")
+              .allowCredentials(true)
+              .maxAge(3600);
+      }
+  }
+  ```
+
+#### 2. JWT依赖与JDK兼容问题
+- **现象**：后端报 `java.lang.ClassNotFoundException: javax.xml.bind.DatatypeConverter` 或 JJWT相关API报错。
+- **原因**：JJWT 0.9.1 版本与 JDK 11+ 不兼容。
+- **解决方法**：升级 JJWT 到 0.11.5，并引入 `jjwt-api`、`jjwt-impl`、`jjwt-jackson` 依赖，重写 JwtUtil 工具类，使用新版API。
+
+#### 3. 登录后页面不跳转/路由守卫死循环
+- **现象**：登录成功后页面没有跳转，或跳转后又被重定向回登录页。
+- **原因**：前端未将token存入localStorage，路由守卫检测不到token。
+- **解决方法**：在handleLogin登录成功后，务必将token和userInfo存入localStorage：
+  ```js
+  localStorage.setItem('token', res.data.token)
+  localStorage.setItem('userInfo', JSON.stringify(res.data.userInfo))
+  ```
+
+#### 4. 前后端数据结构不一致
+- **现象**：前端登录后无法获取token或userInfo，或报undefined。
+- **原因**：前端代码未按后端返回结构取值。
+- **解决方法**：前端应使用 `res.data.token` 和 `res.data.userInfo`，不要用 `res.data.id`。
+
+#### 5. 其他常见问题
+- **请求体格式错误**：注册/登录接口必须用JSON格式请求体，不能用Query参数。
+- **浏览器插件干扰**：部分报错为浏览器插件引起，可用无痕窗口排查。
+
+### 步骤总结
+1. 后端配置CORS，允许前端跨域。
+2. 升级JJWT依赖，适配JDK 17+。
+3. 前端登录成功后存储token和userInfo。
+4. 路由守卫根据token判断放行。
+5. 前后端数据结构严格对齐。
+6. 用Postman/浏览器Network面板逐步排查请求和响应。
+
+通过以上步骤，数字农场系统的登录注册功能已实现稳定对接，用户体验大幅提升。
+
+## 4. 总结与建议
 
 ### 开发建议
 
