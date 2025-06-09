@@ -33,9 +33,9 @@
                 </div>
                 <template #dropdown>
                     <el-dropdown-menu>
-                        <el-dropdown-item>个人信息</el-dropdown-item>
-                        <el-dropdown-item>系统设置</el-dropdown-item>
-                        <el-dropdown-item divided>退出登录</el-dropdown-item>
+                        <el-dropdown-item @click="navigateTo('/user')">个人信息</el-dropdown-item>
+                        <el-dropdown-item @click="navigateTo('/settings')">系统设置</el-dropdown-item>
+                        <el-dropdown-item divided @click="navigateTo('login')">退出登录</el-dropdown-item>
                     </el-dropdown-menu>
                 </template>
             </el-dropdown>
@@ -45,7 +45,7 @@
 
 <script>
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Bell, FullScreen } from '@element-plus/icons-vue'
 
 export default {
@@ -61,6 +61,11 @@ export default {
         const searchText = ref('')
         const notificationCount = ref(5)
         const route = useRoute()
+        const router = useRouter()
+        
+        const navigateTo = (path) => {
+            router.push(path)
+        }
         
         const currentRouteName = computed(() => {
             return route.meta.title || route.name || ''
@@ -86,7 +91,8 @@ export default {
             notificationCount,
             currentRouteName,
             currentRoute,
-            toggleFullScreen
+            toggleFullScreen,
+            navigateTo
         }
     }
 }

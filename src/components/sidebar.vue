@@ -39,7 +39,7 @@
         <span>数据分析</span>
       </el-menu-item>
       
-      <el-sub-menu index="alert">
+      <el-sub-menu index="/alert">
         <template #title>
           <el-icon><Bell /></el-icon>
           <span>监测预警</span>
