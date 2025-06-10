@@ -2,7 +2,7 @@
     <div class="manual-container">
         <!-- 顶部操作栏 -->
         <div class="operation-bar">
-            <el-select v-model="selectedArea" placeholder="基地" class="base-select" >
+            <el-select v-model="selectedArea" placeholder="基地" class="base-select" clearable>
                 <el-option label="全部" value=""></el-option>
                 <el-option v-for="area in areas" :key="area.value" :label="area.label" :value="area.value" />
             </el-select>
@@ -28,7 +28,21 @@
                 value-format="YYYY-MM-DD"
                 class="date-picker"
             />
+            <el-select
+                v-model="selectSource"
+                placeholder="数据来源"
+                clearable
+                class="data-source-select"
+            >
+                <el-option label="全部" value=""></el-option>
+                <el-option label="人工上报" value="manual"></el-option>
+                <el-option label="机器测量" value="device"></el-option>
+            </el-select>
 
+            <el-button type="success" @click="handleFilter">
+                <el-icon><Search /></el-icon>查询
+            </el-button>
+            
             <el-button type="success" @click="handleAddReport">
                 <el-icon><Plus /></el-icon>数据上报
             </el-button>
@@ -49,6 +63,9 @@
             <el-table-column prop="availableP" label="有效磷(mg/kg)" width="120" align="center" />
             <el-table-column prop="availableK" label="速效钾(mg/kg)" width="120" align="center" />
             <el-table-column prop="availableN" label="有效氮(mg/kg)" width="120" align="center" />
+            <el-table-column prop="reporter" label="采样人" width="120" align="center" />
+            <el-table-column prop="phone" label="联系电话" width="120" align="center" />
+            <el-table-column prop="dataSource" label="数据来源" width="120" align="center" />
             <el-table-column label="操作" width="120" fixed="right">
                 <template #default="scope">
                     <el-button link type="success" @click="handleEdit(scope.row)">修改</el-button>
@@ -268,7 +285,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
@@ -297,6 +314,7 @@ export default {
         const selectedArea = ref('')
         const searchText = ref('')
         const dateRange = ref([])
+        const selectSource = ref('') // 声明 selectSource
 
         // 分页
         const currentPage = ref(1)
@@ -315,9 +333,10 @@ export default {
                     baseId: selectedArea.value ? Number(selectedArea.value) : null,
                     pointName: searchText.value,
                     startDate: dateRange.value[0] || '',
-                    endDate: dateRange.value[1] || ''
+                    endDate: dateRange.value[1] || '',
+                    dataSource: selectSource.value || ''
                 }
-                console.log('Sending params:', params);
+                console.log('Sending params to backend:', params); 
                 const res = await getManualReportList(params)
                 if (res && res.data) {
                     tableData.value = Array.isArray(res.data.list) ? res.data.list : []
@@ -343,8 +362,12 @@ export default {
 
         // 查询条件变动时刷新
         const handleFilter = () => {
-            currentPage.value = 1
-            fetchData()
+            console.log('handleFilter triggered. selectedArea.value:', selectedArea.value);
+            currentPage.value = 1;
+            // 使用 nextTick 确保在 v-model 更新完成后再调用 fetchData
+            nextTick(() => {
+                fetchData();
+            });
         }
 
         // 对话框相关
@@ -388,8 +411,46 @@ export default {
             pointId: [{ required: true, message: '请选择监测点名称', trigger: 'change' }],
             soilSampleNo: [{ required: true, message: '请输入土样编号', trigger: 'blur' }],
             soilSampleName: [{ required: true, message: '请输入土样名称', trigger: 'blur' }],
-            longitude: [{ required: true, message: '请输入采样经度', trigger: 'blur' }],
-            latitude: [{ required: true, message: '请输入采样纬度', trigger: 'blur' }],
+            longitude: [
+                { required: true, message: '请输入采样经度', trigger: 'blur' },
+                {
+                    validator: (rule, value, callback) => {
+                        if (value === null || value === '') {
+                            callback(new Error('请输入采样经度'));
+                        } else if (isNaN(Number(value))) {
+                            callback(new Error('经度必须是数字'));
+                        } else {
+                            const numValue = Number(value);
+                            if (numValue < -180 || numValue > 180) {
+                                callback(new Error('经度范围应在 -180 到 180 之间'));
+                            } else {
+                                callback();
+                            }
+                        }
+                    },
+                    trigger: 'blur'
+                }
+            ],
+            latitude: [
+                { required: true, message: '请输入采样纬度', trigger: 'blur' },
+                {
+                    validator: (rule, value, callback) => {
+                        if (value === null || value === '') {
+                            callback(new Error('请输入采样纬度'));
+                        } else if (isNaN(Number(value))) {
+                            callback(new Error('纬度必须是数字'));
+                        } else {
+                            const numValue = Number(value);
+                            if (numValue < -90 || numValue > 90) {
+                                callback(new Error('纬度范围应在 -90 到 90 之间'));
+                            } else {
+                                callback();
+                            }
+                        }
+                    },
+                    trigger: 'blur'
+                }
+            ],
             sampleDepth: [{ required: true, message: '请输入采样深度', trigger: 'blur' }],
             sampleDate: [{ required: true, message: '请选择采样时间', trigger: 'change' }]
         }
@@ -482,6 +543,7 @@ export default {
 
         // 监听基地变化，动态获取监测点
         watch(selectedArea, (val) => {
+            console.log('selectedArea changed to:', val);
             reportForm.baseId = val
             // 清空监测点选项并重新加载
             reportForm.pointId = ''; // 清空已选的监测点
@@ -515,7 +577,8 @@ export default {
             handleAddReport,
             handleEdit,
             handleDelete,
-            submitReport
+            submitReport,
+            selectSource // 导出 selectSource
         }
     }
 }
@@ -552,6 +615,10 @@ export default {
 
 .date-picker {
     width: 320px;
+}
+
+.data-source-select {
+    width: 150px;
 }
 
 /* 移除原有的分页容器样式 */

@@ -4,7 +4,7 @@
         <div class="operation-bar">
             <div class="left-filters">
    
-                <el-select v-model="selectedBase" placeholder="基地" @change="handleFilter">
+                <el-select v-model="selectedBase" placeholder="基地" @change="handleFilter" clearable>
                     <el-option label="全部" value=""></el-option>
                     <el-option v-for="base in bases" :key="base.value" :label="base.label" :value="base.value" />
                 </el-select>
