@@ -123,7 +123,24 @@ CREATE TABLE AlertRecord (
 );
 ```
 
-### 8. 用户表 (User)
+### 8. 预警设置表 (AlertSettings)
+
+```sql
+CREATE TABLE AlertSettings (
+    setting_id INT PRIMARY KEY AUTO_INCREMENT,
+    indicator_name VARCHAR(50) NOT NULL COMMENT '指标名称',
+    condition_type ENUM('大于', '小于', '等于', '分子之外') NOT NULL COMMENT '条件类型',
+    threshold DECIMAL(10,2) NOT NULL COMMENT '阈值',
+    decimal_places INT DEFAULT 0 COMMENT '精度',
+    step DECIMAL(10,2) DEFAULT 1 COMMENT '步长',
+    is_active BOOLEAN DEFAULT TRUE COMMENT '是否启用',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_indicator (indicator_name)
+);
+```
+
+### 9. 用户表 (User)
 
 ```sql
 CREATE TABLE IF NOT EXISTS `User` (

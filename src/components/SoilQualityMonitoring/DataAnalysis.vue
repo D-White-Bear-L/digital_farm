@@ -49,6 +49,9 @@
         <el-tab-pane label="盐分" name="salinity"></el-tab-pane>
         <el-tab-pane label="水分" name="moisture"></el-tab-pane>
         <el-tab-pane label="PH" name="ph"></el-tab-pane>
+        <el-tab-pane label="有效磷" name="availableP"></el-tab-pane>
+        <el-tab-pane label="速效钾" name="availableK"></el-tab-pane>
+        <el-tab-pane label="电导率" name="conductivity"></el-tab-pane>
       </el-tabs>
     </div>
     
@@ -65,6 +68,9 @@
           <el-radio label="钼">钼</el-radio>
           <el-radio label="氯">氯</el-radio>
           <el-radio label="硅">硅</el-radio>
+          <el-radio label="硫">硫</el-radio>
+          <el-radio label="镁">镁</el-radio>
+          <el-radio label="钙">钙</el-radio>
         </el-radio-group>
       </div>
       
@@ -134,8 +140,7 @@
       
       <!-- 分页 - 使用PageBar组件替换原有分页 -->
       <PageBar
-        v-model:page="currentPage"
-        v-model:limit="pageSize"
+        v-model="pagination"
         :total="total"
         @pagination="handlePagination" 
       />
@@ -144,11 +149,12 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { Search, ArrowUp, ArrowDown, More, Download } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import PageBar from '@/components/PageBar.vue'
+import { getSoilTrendAnalysis, getSoilMicroAnalysis, getBaseOptions } from '@/api/DataAnalysis'
 
 export default {
   name: 'DataAnalysis',
@@ -162,22 +168,33 @@ export default {
   },
   setup() {
     // 基地选项
-    const baseOptions = [
-      { label: '北莲基地', value: 'beilian' },
-      { label: '莲花岛基地', value: 'lianhuadao' },
-      { label: '马村基地', value: 'macun' }
-    ]
+    const baseOptions = ref([])
+    
+    // 加载基地选项
+    const loadBaseOptions = async () => {
+      try {
+        const response = await getBaseOptions()
+        if (response.code === 200) {
+          // 直接使用后端返回的数据格式
+          baseOptions.value = response.data
+        } else {
+          ElMessage.error(response.message || '获取基地列表失败')
+        }
+      } catch (error) {
+        console.error('获取基地列表失败:', error)
+        ElMessage.error('获取基地列表失败')
+      }
+    }
     
     // 筛选条件
     const selectedBase = ref('')
     const monitoringPointName = ref('')
-    const activeTab = ref('microElements')
-    const selectedElement = ref('铜')
+    const activeTab = ref('ph') // 默认显示 PH
+    const selectedElement = ref('铜') // 微量元素默认选中铜
     const dateRange = ref([])
     
     // 分页相关
-    const currentPage = ref(1)
-    const pageSize = ref(10)
+    const pagination = ref({ page: 1, limit: 10 })
     const total = ref(0)
     
     // 图表实例
@@ -191,132 +208,185 @@ export default {
       stdDev: 0
     })
     
-    // 扩展模拟数据，添加更多时间点的数据
-    const generateTimeSeriesData = () => {
-      const elements = ['铜', '锌', '铁', '锰', '硼', '钼', '氯', '硅']
-      const bases = ['beilian', 'lianhuadao', 'macun']
-      const monitoringPoints = {
-        beilian: ['北莲监测点1', '北莲监测点2'],
-        lianhuadao: ['莲花岛监测点1', '莲花岛监测点2'],
-        macun: ['马村监测点1', '马村监测点2', '马村监测点3', '马村监测点4']
-      }
-      const statuses = ['正常', '偏高', '偏低']
-      const trends = ['上升', '下降', '稳定']
-      
-      // 生成从2023-04到2025-03的月度数据
-      const startDate = new Date('2023-04-01')
-      const endDate = new Date('2025-03-31')
-      const data = []
-      let id = 1
-      
-      // 为每个基地、监测点、元素生成时间序列数据
-      bases.forEach(base => {
-        monitoringPoints[base].forEach(point => {
-          elements.forEach(element => {
-            // 为每个月生成数据
-            const currentDate = new Date(startDate)
-            while (currentDate <= endDate) {
-              const month = currentDate.getMonth() + 1
-              const year = currentDate.getFullYear()
-              const dateStr = `${year}-${month.toString().padStart(2, '0')}-${Math.floor(Math.random() * 28 + 1).toString().padStart(2, '0')}`
-              
-              // 生成波动的值，使图表更有变化
-              let value = 0
-              if (element === '铜') value = Math.random() * 2 + 0.5 + Math.sin(month / 2) * 0.5
-              else if (element === '锌') value = Math.random() * 1.5 + 0.7 + Math.cos(month / 3) * 0.8
-              else if (element === '铁') value = Math.random() * 3 + 1 + Math.sin(month / 1.5) * 1
-              else value = Math.random() * 2 + 0.8
-              
-              // 根据月份添加季节性变化
-              if (month >= 6 && month <= 8) { // 夏季
-                value *= 1.3
-              } else if (month >= 12 || month <= 2) { // 冬季
-                value *= 0.7
-              }
-              
-              // 随机状态和趋势
-              const status = statuses[Math.floor(Math.random() * statuses.length)]
-              const trend = trends[Math.floor(Math.random() * trends.length)]
-              
-              data.push({
-                id: id++,
-                base,
-                monitoringPoint: point,
-                sampleDate: dateStr,
-                element,
-                value: parseFloat(value.toFixed(2)),
-                status,
-                trend
-              })
-              
-              // 增加一个月
-              currentDate.setMonth(currentDate.getMonth() + 1)
-            }
-          })
-        })
-      })
-      
-      return data
-    }
-    
-    // 模拟数据
-    const allData = reactive(generateTimeSeriesData())
-    
-    // 根据筛选条件过滤的数据
-    const filteredData = computed(() => {
-      let result = allData
-      
-      // 根据基地筛选
-      if (selectedBase.value) {
-        result = result.filter(item => item.base === selectedBase.value)
-      }
-      
-      // 根据监测点名称筛选
-      if (monitoringPointName.value) {
-        result = result.filter(item => item.monitoringPoint.includes(monitoringPointName.value))
-      }
-      
-      // 根据日期范围筛选
-      if (dateRange.value && dateRange.value.length === 2) {
-        const startDate = new Date(dateRange.value[0])
-        const endDate = new Date(dateRange.value[1])
-        result = result.filter(item => {
-          const itemDate = new Date(item.sampleDate)
-          return itemDate >= startDate && itemDate <= endDate
-        })
-      }
-      
-      // 根据当前选择的指标类型筛选
-      if (activeTab.value === 'microElements') {
-        result = result.filter(item => item.element === selectedElement.value)
-      } else if (activeTab.value === 'ph') {
-        // 这里可以添加其他指标的筛选逻辑
-      }
-      
-      // 按基地和监测点名称排序
-      result.sort((a, b) => {
-        if (a.base !== b.base) {
-          return a.base.localeCompare(b.base)
-        }
-        if (a.monitoringPoint !== b.monitoringPoint) {
-          return a.monitoringPoint.localeCompare(b.monitoringPoint)
-        }
-        return new Date(a.sampleDate) - new Date(b.sampleDate)
-      })
-      
-      return result
-    })
-    
     // 表格数据
-    const tableData = computed(() => {
-      const start = (currentPage.value - 1) * pageSize.value
-      const end = start + pageSize.value
-      return filteredData.value.slice(start, end)
-    })
+    const tableData = ref([])
     
-    // 计算统计数据
-    const calculateStatistics = () => {
-      if (filteredData.value.length === 0) {
+    // 后端趋势数据键名映射
+    const trendKeyMap = {
+      'ph': 'ph',
+      'moisture': 'waterContent',
+      'organicMatter': 'organicMatter',
+      'salinity': 'conductivity', // 假设盐分对应电导率
+      'sulfurNitrogen': 'availableN', // 假设硫态氮对应有效氮
+      'availableP': 'availableP',
+      'availableK': 'availableK',
+      'conductivity': 'conductivity'
+    }
+
+    // 微量元素中文名到后端键名映射
+    const elementMap = {
+      '铜': 'cu',
+      '锌': 'zn',
+      '铁': 'fe',
+      '锰': 'mn',
+      '硼': 'b',
+      '钼': 'mo',
+      '氯': 'cl',
+      '硅': 'si',
+      '硫': 's',
+      '镁': 'mg',
+      '钙': 'ca'
+    }
+
+    // 加载数据
+    const loadData = async () => {
+      try {
+        let response
+        const params = {
+          baseId: selectedBase.value || null,
+          pointId: monitoringPointName.value || null,
+          startDate: dateRange.value?.[0] || null,
+          endDate: dateRange.value?.[1] || null
+        }
+
+        console.log('请求参数:', params)
+
+        let apiCallName = '';
+        if (activeTab.value === 'microElements') {
+          response = await getSoilMicroAnalysis(params)
+          apiCallName = 'getSoilMicroAnalysis';
+        } else {
+          response = await getSoilTrendAnalysis(params)
+          apiCallName = 'getSoilTrendAnalysis';
+        }
+
+        console.log(`完整的API响应对象 (来自 ${apiCallName}):`, response)
+
+        // 额外的独立测试，查看 getSoilMicroAnalysis 真实返回
+        if (activeTab.value === 'microElements') {
+            const testMicroResponse = await getSoilMicroAnalysis(params);
+            console.log('独立测试 - getSoilMicroAnalysis 返回:', testMicroResponse);
+        }
+
+        // 根据请求类型处理响应
+        const isMicroOrTrendTab = activeTab.value === 'microElements' || (activeTab.value in trendKeyMap)
+        console.log('当前 activeTab:', activeTab.value, '是否为微量元素或趋势标签:', isMicroOrTrendTab)
+
+        if (isMicroOrTrendTab) {
+          // 对于趋势和微量元素接口，后端直接返回数据，没有code/message封装
+          const data = response // 直接使用 response 作为数据负载
+          console.log('原始响应数据 (直接负载 - response):', data)
+
+          // 更新图表数据
+          if (activeTab.value === 'microElements') {
+            const microData = data || {}
+            console.log('处理微量元素数据 - microData:', microData)
+            
+            tableData.value = Object.entries(microData).map(([key, value]) => {
+              const elementDisplayName = Object.entries(elementMap).find(([, v]) => v === key)?.[0] || key
+              console.log('映射微量元素项 - key:', key, 'value:', value, 'displayName:', elementDisplayName)
+              return {
+                base: selectedBase.value,
+                monitoringPoint: monitoringPointName.value,
+                sampleDate: new Date().toISOString().split('T')[0],
+                element: elementDisplayName,
+                value: value,
+                status: getStatusByValue(key, value),
+                trend: '稳定'
+              }
+            })
+          } else {
+            const trendData = data || {}
+            const backendKey = trendKeyMap[activeTab.value]
+            console.log('处理趋势数据 - trendData:', trendData, '后端键名:', backendKey)
+            const values = trendData[backendKey] || []
+            console.log('处理趋势数据 - values (后端键名对应的值数组):', values)
+            
+            tableData.value = (trendData.dates || []).map((date, index) => {
+              const itemValue = values[index]
+              console.log('映射趋势数据项 - date:', date, 'index:', index, 'value:', itemValue)
+              return {
+                base: selectedBase.value,
+                monitoringPoint: monitoringPointName.value,
+                sampleDate: date,
+                value: itemValue,
+                status: getStatusByValue(activeTab.value, itemValue),
+                trend: getTrendByValue(itemValue, index > 0 ? values[index - 1] : null)
+              }
+            })
+          }
+
+          console.log('处理后的表格数据 (tableData.value):', tableData.value)
+
+          updateStatistics()
+          updateChart()
+
+        } else if (response.data && response.data.code === 200) {
+          // 这个分支主要用于处理像基地选项那样有封装 code/message 的响应
+          const data = response.data.data 
+          console.log('原始响应数据 (封装格式 - response.data.data):', data)
+          ElMessage.error(response.data?.message || '未识别的封装响应格式或获取数据失败')
+          console.error('API错误或未识别的封装响应:', response)
+
+        } else {
+          // 处理其他没有 code 或 data 的非预期响应
+          ElMessage.error(response.data?.message || '获取数据失败: 未知响应格式') 
+          console.error('API错误: 未知响应格式', response)
+        }
+      } catch (error) {
+        console.error('加载数据失败 (捕获到异常):', error)
+        ElMessage.error('加载数据失败: ' + (error.message || '未知错误'))
+      }
+    }
+
+    // 根据值获取状态
+    const getStatusByValue = (key, value) => {
+      if (value === null || value === undefined) return '未知'
+      
+      // 阈值定义
+      const thresholds = {
+        // 基础理化指标阈值
+        ph: { low: 6.0, high: 8.0 },
+        waterContent: { low: 20, high: 40 }, // 与 moisture 对应
+        organicMatter: { low: 20, high: 40 },
+        conductivity: { low: 0.1, high: 0.3 }, // 与 salinity 对应
+        availableN: { low: 100, high: 300 }, // 与 sulfurNitrogen 对应
+        availableP: { low: 20, high: 60 },
+        availableK: { low: 100, high: 300 },
+        
+        // 微量元素阈值 (后端键名)
+        cu: { low: 0.2, high: 1.0 },
+        zn: { low: 0.5, high: 2.0 },
+        fe: { low: 1.0, high: 3.0 },
+        mn: { low: 0.2, high: 0.8 },
+        b: { low: 0.1, high: 0.5 },
+        mo: { low: 0.05, high: 0.2 },
+        cl: { low: 0.05, high: 0.2 },
+        si: { low: 5.0, high: 15.0 },
+        mg: { low: 1.0, high: 3.0 },
+        ca: { low: 3.0, high: 8.0 },
+        s: { low: 1.0, high: 3.0 }
+      }
+      
+      const threshold = thresholds[key]
+      if (!threshold) return '正常'
+      
+      if (value < threshold.low) return '偏低'
+      if (value > threshold.high) return '偏高'
+      return '正常'
+    }
+
+    // 根据值获取趋势
+    const getTrendByValue = (current, previous) => {
+      if (!previous) return '稳定'
+      const diff = current - previous
+      if (Math.abs(diff) < 0.1) return '稳定'
+      return diff > 0 ? '上升' : '下降'
+    }
+
+    // 更新统计数据
+    const updateStatistics = () => {
+      if (tableData.value.length === 0) {
         statistics.max = 0
         statistics.min = 0
         statistics.avg = 0
@@ -324,15 +394,13 @@ export default {
         return
       }
       
-      const values = filteredData.value.map(item => item.value)
+      const values = tableData.value.map(item => item.value)
       statistics.max = Math.max(...values).toFixed(2)
       statistics.min = Math.min(...values).toFixed(2)
       
-      // 计算平均值
       const sum = values.reduce((acc, val) => acc + val, 0)
       statistics.avg = (sum / values.length).toFixed(2)
       
-      // 计算标准差
       const variance = values.reduce((acc, val) => acc + Math.pow(val - statistics.avg, 2), 0) / values.length
       statistics.stdDev = Math.sqrt(variance).toFixed(2)
     }
@@ -348,101 +416,23 @@ export default {
         if (!chartDom) return
         
         chartInstance = echarts.init(chartDom)
-        updateChart()
       })
     }
     
     // 更新图表数据
     const updateChart = () => {
-      if (!chartInstance) return
+      if (!chartInstance) {
+        console.warn('ECharts 实例未初始化或已销毁');
+        return;
+      }
       
-      calculateStatistics()
+      updateStatistics();
       
-      // 按基地和日期分组数据
-      const groupedByBase = {}
-      const allDates = new Set()
-      
-      // 收集所有日期并按基地分组
-      filteredData.value.forEach(item => {
-        allDates.add(item.sampleDate)
-        
-        if (!groupedByBase[item.base]) {
-          groupedByBase[item.base] = {}
-        }
-        
-        // 按日期分组
-        if (!groupedByBase[item.base][item.sampleDate]) {
-          groupedByBase[item.base][item.sampleDate] = []
-        }
-        
-        groupedByBase[item.base][item.sampleDate].push(item)
-      })
-      
-      // 将日期转换为数组并排序
-      const sortedDates = Array.from(allDates).sort((a, b) => new Date(a) - new Date(b))
-      
-      // 准备图表数据
-      const series = []
-      const baseNames = []
-      
-      // 为每个基地创建一个系列
-      Object.keys(groupedByBase).forEach((base, index) => {
-        const baseLabel = baseOptions.find(option => option.value === base)?.label || base
-        baseNames.push(baseLabel)
-        
-        // 为每个监测点找到对应的平均值
-        const seriesData = sortedDates.map(date => {
-          const items = groupedByBase[base][date] || []
-          if (items.length === 0) return null
-          
-          // 计算该日期下所有监测点的平均值
-          const sum = items.reduce((acc, item) => acc + item.value, 0)
-          return [date, parseFloat((sum / items.length).toFixed(2))]
-        }).filter(item => item !== null)
-        
-        // 颜色配置
-        const colors = [
-          ['rgba(131, 191, 246, 0.8)', 'rgba(131, 191, 246, 0.1)'],
-          ['rgba(250, 200, 88, 0.8)', 'rgba(250, 200, 88, 0.1)'],
-          ['rgba(86, 168, 153, 0.8)', 'rgba(86, 168, 153, 0.1)'],
-          ['rgba(255, 107, 107, 0.8)', 'rgba(255, 107, 107, 0.1)'],
-          ['rgba(168, 119, 218, 0.8)', 'rgba(168, 119, 218, 0.1)'],
-          ['rgba(95, 192, 95, 0.8)', 'rgba(95, 192, 95, 0.1)']
-        ]
-        
-        series.push({
-          name: baseLabel,
-          type: 'line',
-          stack: 'Total',
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 6,
-          sampling: 'average',
-          itemStyle: {
-            color: colors[index % colors.length][0]
-          },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              {
-                offset: 0,
-                color: colors[index % colors.length][0]
-              },
-              {
-                offset: 1,
-                color: colors[index % colors.length][1]
-              }
-            ])
-          },
-          emphasis: {
-            focus: 'series'
-          },
-          data: seriesData
-        })
-      })
-      
-      // 设置图表选项
+      const series = [];
+      const legendData = []; // 存储图例数据
+
+      // 通用图表配置，后续会根据activeTab进行修改
       const option = {
-        color: ['#83bff6', '#fac858', '#56a899', '#ff6b6b', '#a877da', '#5fc05f'],
         title: {
           text: getChartTitle(),
           left: 'center',
@@ -458,30 +448,11 @@ export default {
             label: {
               backgroundColor: '#6a7985'
             }
-          },
-          formatter: function(params) {
-            let result = params[0].axisValue + '<br/>'
-            params.forEach(param => {
-              result += `<div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;">
-                <span style="margin-right:15px;">
-                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${param.color};margin-right:5px;"></span>
-                  ${param.seriesName}:
-                </span>
-                <span style="font-weight:bold;">${param.value[1]} ${getValueUnit()}</span>
-              </div>`
-            })
-            return result
           }
         },
         legend: {
-          data: baseNames,
-          bottom: 0,
-          icon: 'circle',
-          itemWidth: 10,
-          itemHeight: 10,
-          textStyle: {
-            fontSize: 12
-          }
+          data: legendData,
+          bottom: 0
         },
         grid: {
           left: '3%',
@@ -490,132 +461,136 @@ export default {
           top: '10%',
           containLabel: true
         },
-        toolbox: {
-          feature: {
-            saveAsImage: {}
-          }
-        },
-        xAxis: {
-          type: 'time',
-          boundaryGap: false,
-          axisLine: {
-            lineStyle: {
-              color: '#ddd'
+        series: series
+      };
+
+      if (activeTab.value === 'microElements') {
+        // 处理微量元素数据：显示所有微量元素的柱状图
+        if (tableData.value.length > 0) {
+          const elementNames = tableData.value.map(item => item.element);
+          const values = tableData.value.map(item => item.value);
+          
+          series.push({
+            name: '含量',
+            type: 'bar',
+            data: values,
+            itemStyle: {
+              color: '#83bff6'
+            },
+            label: {
+              show: true,
+              position: 'top',
+              formatter: '{c}'
             }
-          },
+          });
+          legendData.push('含量');
+
+          option.xAxis = {
+            type: 'category',
+            data: elementNames,
           axisLabel: {
-            formatter: '{yyyy}-{MM}',
-            color: '#666'
-          },
-          splitLine: {
-            show: true,
-            lineStyle: {
-              color: ['#eee'],
-              type: 'dashed'
+              interval: 0,
+              rotate: 30
             }
-          }
-        },
-        yAxis: {
+          };
+          option.yAxis = {
           type: 'value',
-          name: getValueLabel(),
-          nameTextStyle: {
-            color: '#666',
-            padding: [0, 30, 0, 0]
-          },
-          axisLine: {
-            show: true,
-            lineStyle: {
-              color: '#ddd'
-            }
-          },
-          axisLabel: {
-            color: '#666'
-          },
-          splitLine: {
-            lineStyle: {
-              color: ['#eee']
-            }
-          }
-        },
-        series: series,
-        // 添加右侧数据标签
-        visualMap: {
-          show: true,
-          type: 'piecewise',
-          right: 10,
-          top: 'center',
-          orient: 'vertical',
-          pieces: [
-            { value: 2024, label: '2024-03', color: '#83bff6' },
-            { value: 2023, label: '铜', color: '#fac858' },
-            { value: 2022, label: '锌', color: '#56a899' },
-            { value: 2021, label: '铁', color: '#ff6b6b' },
-            { value: 2020, label: '锰', color: '#a877da' },
-            { value: 2019, label: '硼', color: '#5fc05f' },
-            { value: 2018, label: '钼', color: '#83bff6' },
-            { value: 2017, label: '氯', color: '#fac858' },
-            { value: 2016, label: '硅', color: '#56a899' }
-          ],
-          textStyle: {
-            color: '#333'
-          }
+            name: getValueUnit()
+          };
         }
+      } else {
+        // 处理趋势数据：显示当前指标的折线图
+        const dates = tableData.value.map(item => item.sampleDate);
+        const values = tableData.value.map(item => item.value);
+        
+        series.push({
+          name: getValueLabel(),
+          type: 'line',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          data: values,
+          itemStyle: {
+            color: '#83bff6'
+          },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              {
+                offset: 0,
+                color: 'rgba(131, 191, 246, 0.8)'
+              },
+              {
+                offset: 1,
+                color: 'rgba(131, 191, 246, 0.1)'
+              }
+            ])
+          }
+        });
+        legendData.push(getValueLabel());
+
+        option.xAxis = {
+          type: 'category',
+          data: dates,
+          axisLabel: {
+            formatter: (value) => value.split('-').slice(1).join('-')
+          }
+        };
+        option.yAxis = {
+          type: 'value',
+          name: getValueUnit()
+        };
       }
       
-      chartInstance.setOption(option)
-      total.value = filteredData.value.length
+      console.log('图表系列数据:', series);
+      console.log('最终图表选项:', option); // 更改日志，更清晰
+
+      chartInstance.setOption(option);
+      total.value = tableData.value.length;
     }
     
     // 获取图表标题
     const getChartTitle = () => {
+      const baseName = baseOptions.value.find(b => b.value === selectedBase.value)?.label || '所有基地'
+      const pointName = monitoringPointName.value || '所有监测点'
+
       if (activeTab.value === 'microElements') {
-        return `土壤${selectedElement.value}含量分析`
-      } else if (activeTab.value === 'ph') {
-        return '土壤pH值分析'
-      } else if (activeTab.value === 'moisture') {
-        return '土壤水分含量分析'
-      } else if (activeTab.value === 'organicMatter') {
-        return '土壤有机质含量分析'
-      } else if (activeTab.value === 'salinity') {
-        return '土壤盐分含量分析'
-      } else if (activeTab.value === 'sulfurNitrogen') {
-        return '土壤硫态氮含量分析'
+        return `${baseName} - ${pointName} 微量元素含量分析` // 微量元素显示所有元素分析
+      } else {
+        return `${baseName} - ${pointName} ${getValueLabel()}趋势分析`
       }
-      return '土壤质量数据分析'
     }
     
     // 获取值的标签
     const getValueLabel = () => {
-      if (activeTab.value === 'microElements') {
-        return `${selectedElement.value}含量(mg/kg)`
-      } else if (activeTab.value === 'ph') {
-        return 'pH值'
-      } else if (activeTab.value === 'moisture') {
-        return '水分(%)'
-      } else if (activeTab.value === 'organicMatter') {
-        return '有机质(g/kg)'
-      } else if (activeTab.value === 'salinity') {
-        return '盐分(g/kg)'
-      } else if (activeTab.value === 'sulfurNitrogen') {
-        return '硫态氮(mg/kg)'
+      switch (activeTab.value) {
+        case 'ph': return 'pH值'
+        case 'moisture': return '水分含量'
+        case 'organicMatter': return '有机质'
+        case 'salinity': return '盐分'
+        case 'sulfurNitrogen': return '硫态氮'
+        case 'availableP': return '有效磷'
+        case 'availableK': return '速效钾'
+        case 'conductivity': return '电导率'
+        case 'microElements': return selectedElement.value + '含量' // 微量元素显示选中元素的含量
+        default: return '数值'
       }
-      return '值'
     }
     
     // 获取值的单位
     const getValueUnit = () => {
-      if (activeTab.value === 'microElements') {
-        return 'mg/kg'
-      } else if (activeTab.value === 'ph') {
-        return ''
-      } else if (activeTab.value === 'moisture') {
-        return '%'
-      } else if (activeTab.value === 'organicMatter' || activeTab.value === 'salinity') {
-        return 'g/kg'
-      } else if (activeTab.value === 'sulfurNitrogen') {
-        return 'mg/kg'
+      switch (activeTab.value) {
+        case 'ph': return 'pH'
+        case 'moisture': return '%'
+        case 'organicMatter': return 'g/kg'
+        case 'salinity': return 'dS/m'
+        case 'sulfurNitrogen': return 'mg/kg'
+        case 'conductivity': return 'dS/m'
+        case 'availableP': return 'mg/kg'
+        case 'availableK': return 'mg/kg'
+        case 'availableN': return 'mg/kg'
+        case 'microElements': return 'mg/kg' // 微量元素统一单位
+        default: return ''
       }
-      return ''
     }
     
     // 获取状态类型
@@ -635,8 +610,8 @@ export default {
     
     // 处理查询
     const handleSearch = () => {
-      currentPage.value = 1
-      updateChart()
+      pagination.value.page = 1
+      loadData()
     }
     
     // 处理标签页切换
@@ -644,26 +619,26 @@ export default {
       if (activeTab.value === 'microElements') {
         selectedElement.value = '铜'
       }
-      updateChart()
+      loadData()
     }
     
     // 处理分页 - 新增处理分页方法
     const handlePagination = ({page, limit}) => {
-      currentPage.value = page
-      pageSize.value = limit
-      updateChart()
+      pagination.value.page = page
+      pagination.value.limit = limit
+      loadData()
     }
     
     // 处理分页大小变化 - 保留原有方法以兼容
     const handleSizeChange = (size) => {
-      pageSize.value = size
-      updateChart()
+      pagination.value.limit = size
+      loadData()
     }
     
     // 处理当前页变化 - 保留原有方法以兼容
     const handleCurrentChange = (page) => {
-      currentPage.value = page
-      updateChart()
+      pagination.value.page = page
+      loadData()
     }
     
     // 导出数据
@@ -673,12 +648,16 @@ export default {
     
     // 监听筛选条件变化
     watch([selectedBase, monitoringPointName, activeTab, selectedElement, dateRange], () => {
-      updateChart()
-    })
+      if (selectedBase.value || monitoringPointName.value || dateRange.value?.length === 2) {
+        loadData()
+      }
+    }, { deep: true })
     
-    // 组件挂载后初始化图表
+    // 组件挂载后加载数据
     onMounted(() => {
       initChart()
+      loadBaseOptions() // 加载基地选项
+      loadData()
       
       // 监听窗口大小变化，调整图表大小
       window.addEventListener('resize', () => {
@@ -695,8 +674,7 @@ export default {
       activeTab,
       selectedElement,
       dateRange,
-      currentPage,
-      pageSize,
+      pagination,
       total,
       tableData,
       statistics,
@@ -709,7 +687,8 @@ export default {
       updateChart,
       getValueLabel,
       getStatusType,
-      getTrendType
+      getTrendType,
+      loadData
     }
   }
 }
