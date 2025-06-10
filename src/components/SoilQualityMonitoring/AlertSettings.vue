@@ -7,10 +7,10 @@
         
         <el-table :data="alertSettings" border stripe style="width: 100%">
             <el-table-column type="index" label="序号" width="80" align="center" />
-            <el-table-column prop="name" label="名称" min-width="120" />
-            <el-table-column prop="condition" label="适宜范围" width="180">
+            <el-table-column prop="indicatorName" label="名称" min-width="120" />
+            <el-table-column prop="conditionType" label="适宜范围" width="180">
                 <template #default="scope">
-                    <el-select v-model="scope.row.condition" placeholder="选择条件">
+                    <el-select v-model="scope.row.conditionType" placeholder="选择条件">
                         <el-option label="大于" value="大于" />
                         <el-option label="小于" value="小于" />
                         <el-option label="等于" value="等于" />
@@ -23,7 +23,7 @@
                     <el-input-number 
                         v-model="scope.row.threshold" 
                         :min="0" 
-                        :precision="scope.row.precision" 
+                        :precision="scope.row.decimalPlaces" 
                         :step="scope.row.step"
                         controls-position="right"
                         style="width: 100%"
@@ -40,38 +40,39 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getAlertSettings, updateAlertSetting } from '@/api/AlertSettings'
 
 export default {
     name: 'AlertSettings',
     setup() {
-        // 预警设置数据
-        const alertSettings = ref([
-            { id: 1, name: '有机质', condition: '分子之外', threshold: 100.42, precision: 2, step: 0.1 },
-            { id: 2, name: '硼', condition: '大于', threshold: 52, precision: 0, step: 1 },
-            { id: 3, name: '有效钾', condition: '大于', threshold: 100, precision: 0, step: 1 },
-            { id: 4, name: '钙', condition: '大于', threshold: 100, precision: 0, step: 1 },
-            { id: 5, name: '硫', condition: '等于', threshold: 100, precision: 0, step: 1 },
-            { id: 6, name: 'ph', condition: '等于', threshold: 50, precision: 0, step: 1 },
-            { id: 7, name: '铜', condition: '大于', threshold: 100, precision: 0, step: 1 },
-            { id: 8, name: '锌', condition: '大于', threshold: 100, precision: 0, step: 1 },
-            { id: 9, name: '硅', condition: '大于', threshold: 100, precision: 0, step: 1 },
-            { id: 10, name: '氯', condition: '大于', threshold: 100, precision: 0, step: 1 },
-            { id: 11, name: '锰', condition: '大于', threshold: 100, precision: 0, step: 1 }
-        ])
+        const alertSettings = ref([])
+
+        const fetchAlertSettings = async () => {
+            try {
+                const response = await getAlertSettings();
+                alertSettings.value = response;
+            } catch (error) {
+                ElMessage.error('获取预警设置失败');
+                console.error('Failed to fetch alert settings:', error);
+            }
+        };
 
         // 保存设置
-        const saveSettings = (row) => {
-            // 这里应该是调用API保存设置
-            // 模拟API调用
-            setTimeout(() => {
-                ElMessage({
-                    type: 'success',
-                    message: `${row.name}预警设置保存成功`
-                })
-            }, 500)
-        }
+        const saveSettings = async (row) => {
+            try {
+                await updateAlertSetting(row);
+                ElMessage.success(`${row.indicatorName} 预警设置保存成功`);
+            } catch (error) {
+                ElMessage.error(`${row.indicatorName} 预警设置保存失败`);
+                console.error('Failed to save alert settings:', error);
+            }
+        };
+
+        onMounted(() => {
+            fetchAlertSettings();
+        });
 
         return {
             alertSettings,
