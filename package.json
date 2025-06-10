@@ -32,15 +32,13 @@
       "node": true
     },
     "extends": [
-      "plugin:vue/vue3-recommended",
+      "plugin:vue/vue3-essential",
       "eslint:recommended"
     ],
     "parserOptions": {
       "parser": "@babel/eslint-parser"
     },
-    "rules": {
-      "vue/no-v-model-argument": "off"
-    }
+    "rules": {}
   },
   "browserslist": [
     "> 1%",

@@ -7,7 +7,13 @@ export function getSoilTrendAnalysis(params) {
     return request({
         url: '/api/dataAnalysis/soil/trend',
         method: 'get',
-        params
+        params: {
+            ...params,
+            pointId: params.pointId || null, // 确保传递 pointId
+            baseId: params.baseId || null,
+            startDate: params.startDate || null,
+            endDate: params.endDate || null
+        }
     })
 }
 
@@ -16,7 +22,14 @@ export function getSoilMicroAnalysis(params) {
     return request({
         url: '/api/dataAnalysis/soil/micro',
         method: 'get',
-        params: { ...params, _t: Date.now() }
+        params: {
+            ...params,
+            pointId: params.pointId || null, // 确保传递 pointId
+            baseId: params.baseId || null,
+            startDate: params.startDate || null,
+            endDate: params.endDate || null,
+            _t: Date.now()
+        }
     })
 }
 

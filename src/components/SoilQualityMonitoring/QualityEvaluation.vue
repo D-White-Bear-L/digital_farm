@@ -52,7 +52,8 @@
                     <template #default="scope">
                         <div class="operation-buttons">
                             <el-button type="text"  plain @click="handleViewDetail(scope.row)">查看详情</el-button>
-                            <el-button type="danger" size="small" plain @click="handleShowHistory(scope.row)">评估记录</el-button>
+                            <!-- <el-button type="danger" size="small" plain @click="handleShowHistory(scope.row)">评估记录</el-button> -->
+                             <el-button type="danger" size="small" plain @click="handleDelete(scope.row)">删除</el-button>
                         </div>
                     </template>
                 </el-table-column>

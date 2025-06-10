@@ -118,7 +118,11 @@
             {{ baseOptions.find(option => option.value === scope.row.base)?.label || scope.row.base }}
           </template>
         </el-table-column>
-        <el-table-column prop="monitoringPoint" label="监测点" min-width="120"></el-table-column>
+        <el-table-column prop="monitoringPoint" label="监测点" min-width="120">
+          <template #default="scope">
+            {{ scope.row.monitoringPoint || currentDisplayPointName.value }}
+          </template>
+        </el-table-column>
         <el-table-column prop="sampleDate" label="采样日期" width="120"></el-table-column>
         <el-table-column prop="value" :label="getValueLabel()" width="120"></el-table-column>
         <el-table-column prop="status" label="状态评价" width="100">
@@ -155,6 +159,7 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import PageBar from '@/components/PageBar.vue'
 import { getSoilTrendAnalysis, getSoilMicroAnalysis, getBaseOptions } from '@/api/DataAnalysis'
+import { getMonitoringPointOptions } from '@/api/Monitoring'
 
 export default {
   name: 'DataAnalysis',
@@ -169,13 +174,17 @@ export default {
   setup() {
     // 基地选项
     const baseOptions = ref([])
+    // 监测点列表，用于名称到ID的映射
+    const allMonitoringPoints = ref([])
+    const monitoringPointName = ref('')
+    // 当前筛选并用于显示监测点的名称
+    const currentDisplayPointName = ref('所有监测点')
     
     // 加载基地选项
     const loadBaseOptions = async () => {
       try {
         const response = await getBaseOptions()
         if (response.code === 200) {
-          // 直接使用后端返回的数据格式
           baseOptions.value = response.data
         } else {
           ElMessage.error(response.message || '获取基地列表失败')
@@ -185,10 +194,27 @@ export default {
         ElMessage.error('获取基地列表失败')
       }
     }
+
+    // 加载所有监测点列表
+    const loadAllMonitoringPoints = async () => {
+      try {
+        const response = await getMonitoringPointOptions()
+        console.log('所有监测点原始数据:', response)
+        
+        if (response.code === 200 && Array.isArray(response.data)) {
+          allMonitoringPoints.value = response.data
+        } else {
+          console.error('所有监测点数据格式不正确:', response)
+          ElMessage.error('获取所有监测点列表失败')
+        }
+      } catch (error) {
+        console.error('获取所有监测点列表失败:', error)
+        ElMessage.error('获取所有监测点列表失败')
+      }
+    }
     
     // 筛选条件
     const selectedBase = ref('')
-    const monitoringPointName = ref('')
     const activeTab = ref('ph') // 默认显示 PH
     const selectedElement = ref('铜') // 微量元素默认选中铜
     const dateRange = ref([])
@@ -242,14 +268,42 @@ export default {
     const loadData = async () => {
       try {
         let response
+        
+        // 根据 monitoringPointName 查找对应的 pointId
+        let pointIdToSend = null;
+        if (monitoringPointName.value) {
+          const matchedPoint = allMonitoringPoints.value.find(point => 
+            point.pointName === monitoringPointName.value
+          );
+          if (matchedPoint) {
+            pointIdToSend = matchedPoint.pointId;
+            currentDisplayPointName.value = matchedPoint.pointName; // 更新显示名称
+          } else {
+            console.warn(`未找到与 "${monitoringPointName.value}" 精确匹配的监测点ID，将发送 null。`);
+            currentDisplayPointName.value = '所有监测点';
+          }
+        } else {
+          currentDisplayPointName.value = '所有监测点';
+        }
+
         const params = {
           baseId: selectedBase.value || null,
-          pointId: monitoringPointName.value || null,
+          pointId: pointIdToSend,
           startDate: dateRange.value?.[0] || null,
           endDate: dateRange.value?.[1] || null
         }
 
         console.log('请求参数:', params)
+
+        // 设置用于前端显示的监测点名称
+        if (pointIdToSend !== null) {
+          const resolvedPoint = allMonitoringPoints.value.find(p => p.pointId === pointIdToSend);
+          currentDisplayPointName.value = resolvedPoint ? resolvedPoint.pointName : '所有监测点';
+        } else if (monitoringPointName.value) { 
+          currentDisplayPointName.value = monitoringPointName.value; 
+        } else { 
+          currentDisplayPointName.value = '所有监测点';
+        }
 
         let apiCallName = '';
         if (activeTab.value === 'microElements') {
@@ -287,7 +341,7 @@ export default {
               console.log('映射微量元素项 - key:', key, 'value:', value, 'displayName:', elementDisplayName)
               return {
                 base: selectedBase.value,
-                monitoringPoint: monitoringPointName.value,
+                monitoringPoint: currentDisplayPointName.value, // 使用统一的显示名称
                 sampleDate: new Date().toISOString().split('T')[0],
                 element: elementDisplayName,
                 value: value,
@@ -307,7 +361,7 @@ export default {
               console.log('映射趋势数据项 - date:', date, 'index:', index, 'value:', itemValue)
               return {
                 base: selectedBase.value,
-                monitoringPoint: monitoringPointName.value,
+                monitoringPoint: currentDisplayPointName.value, // 使用统一的显示名称
                 sampleDate: date,
                 value: itemValue,
                 status: getStatusByValue(activeTab.value, itemValue),
@@ -551,12 +605,12 @@ export default {
     // 获取图表标题
     const getChartTitle = () => {
       const baseName = baseOptions.value.find(b => b.value === selectedBase.value)?.label || '所有基地'
-      const pointName = monitoringPointName.value || '所有监测点'
-
+      const displayPointName = currentDisplayPointName.value; // 直接使用统一的显示名称
+      
       if (activeTab.value === 'microElements') {
-        return `${baseName} - ${pointName} 微量元素含量分析` // 微量元素显示所有元素分析
+        return `${baseName} - ${displayPointName} 微量元素含量分析` // 微量元素显示所有元素分析
       } else {
-        return `${baseName} - ${pointName} ${getValueLabel()}趋势分析`
+        return `${baseName} - ${displayPointName} ${getValueLabel()}趋势分析`
       }
     }
     
@@ -657,6 +711,7 @@ export default {
     onMounted(() => {
       initChart()
       loadBaseOptions() // 加载基地选项
+      loadAllMonitoringPoints() // 加载所有监测点列表
       loadData()
       
       // 监听窗口大小变化，调整图表大小
@@ -905,13 +960,6 @@ export default {
 :deep(.el-button:hover) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-:deep(.el-tag) {
-  border-radius: 4px;
-  padding: 0 10px;
-  height: 28px;
-  line-height: 28px;
 }
 
 :deep(.el-select) {

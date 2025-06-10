@@ -38,9 +38,9 @@
         
         <!-- 预警记录表格 -->
         <div class="table-container">
-            <el-table :data="paginatedAlerts" style="width: 100%" border stripe class="custom-table">
+            <el-table :data="alertRecords" style="width: 100%" border stripe class="custom-table">
                 <el-table-column type="index" label="序号" width="60" align="center" />
-                <el-table-column prop="monitoringPoint" label="监测点" min-width="120" />
+                <el-table-column prop="pointName" label="监测点" min-width="120" />
                 <el-table-column prop="alertContent" label="预警内容" min-width="300" show-overflow-tooltip />
                 <el-table-column prop="alertTime" label="预警时间" min-width="180" />
                 <el-table-column label="操作" width="100" align="center">
@@ -68,10 +68,11 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Search, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import PageBar from '@/components/PageBar.vue'
+import { getAlertRecords, updateAlertStatus, getBaseOptions } from '@/api/AlertRecords'
 
 export default {
     name: 'AlertRecords',
@@ -82,11 +83,7 @@ export default {
     },
     setup() {
         // 基地选项
-        const areas = [
-            { label: '地块一基地', value: '地块一基地' },
-            { label: '莲花岛测点', value: '莲花岛测点' },
-            { label: '北莲资测点', value: '北莲资测点' }
-        ]
+        const areas = ref([])
         
         // 筛选条件
         const selectedArea = ref('')
@@ -96,94 +93,89 @@ export default {
         // 分页相关
         const currentPage = ref(1)
         const pageSize = ref(10)
+        const totalItems = ref(0)
         
-        // 模拟预警数据
-        const alertRecords = ref([
-            { id: 1, monitoringPoint: '地块一基地', alertContent: '测试L2的地块一基地:有机质含量44.6g/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 2, monitoringPoint: '地块一基地', alertContent: '测试L2的地块一基地:有机质含量44.6g/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 3, monitoringPoint: '地块一基地', alertContent: '测试L2的地块一基地:有机质含量0.65g/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 4, monitoringPoint: '地块一基地', alertContent: '测试L2的地块一基地:有机质含量44.6g/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 5, monitoringPoint: '地块一基地', alertContent: '测试L2的地块一基地:有效磷含量659mg/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 6, monitoringPoint: '地块一基地', alertContent: '测试L2的地块一基地:有机质含量0.65g/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 7, monitoringPoint: '地块一基地', alertContent: '测试L2的地块一基地:有机质含量0.65g/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 8, monitoringPoint: '地块一基地', alertContent: '本地地块的Test:有效磷含量234mg/kg/干设置阈值100.00mg/kg,有机质含量44.6g/kg/干设置阈值100.00mg/kg,有效钾含量100.00mg/kg/干设置阈值100.00mg/kg,全氮含量2.74mg/kg/干设置阈值100.00mg/kg,全磷含量0.65g/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 9, monitoringPoint: '地块一基地', alertContent: '测试L2的地块一基地:有机质含量0.65g/kg/干设置阈值100.00mg/kg', alertTime: '2025-03-18 00:00:00', isRead: false },
-            { id: 10, monitoringPoint: '安吉基地', alertContent: '安吉基地的Test:有效磷含量234mg/kg/干设置阈值100.00mg/kg', alertTime: '2024-11-14 19:26:48', isRead: false }
-        ])
+        // 预警记录数据
+        const alertRecords = ref([])
         
         // 加载状态
         const loading = ref(false)
         
-        // 过滤后的数据
-        const filteredAlerts = computed(() => {
-            let result = alertRecords.value
-            
-            // 基地筛选
-            if (selectedArea.value) {
-                result = result.filter(item => item.monitoringPoint.includes(selectedArea.value))
+        // 加载基地选项
+        const loadBaseOptions = async () => {
+            try {
+                const response = await getBaseOptions()
+                if (response.code === 200) {
+                    areas.value = response.data
+                } else {
+                    ElMessage.error(response.message || '获取基地列表失败')
+                }
+            } catch (error) {
+                console.error('获取基地列表失败:', error)
+                ElMessage.error('获取基地列表失败')
             }
-            
-            // 监测点名称筛选
-            if (searchText.value) {
-                result = result.filter(item => item.monitoringPoint.includes(searchText.value))
-            }
-            
-            // 日期范围筛选
-            if (dateRange.value && dateRange.value.length === 2) {
-                const startDate = new Date(dateRange.value[0])
-                const endDate = new Date(dateRange.value[1])
-                endDate.setHours(23, 59, 59, 999) // 设置为当天结束时间
+        }
+        
+        // 加载预警记录
+        const loadAlertRecords = async () => {
+            loading.value = true
+            try {
+                const params = {
+                    baseId: selectedArea.value || null,
+                    pointName: searchText.value || null,
+                    startDate: dateRange.value?.[0] || null,
+                    endDate: dateRange.value?.[1] || null,
+                    page: currentPage.value,
+                    size: pageSize.value
+                }
                 
-                result = result.filter(item => {
-                    const alertDate = new Date(item.alertTime)
-                    return alertDate >= startDate && alertDate <= endDate
-                })
+                const response = await getAlertRecords(params)
+                if (response.code === 200) {
+                    alertRecords.value = response.data.list || []
+                    totalItems.value = response.data.total || 0
+                } else {
+                    ElMessage.error(response.message || '获取预警记录失败')
+                }
+            } catch (error) {
+                console.error('获取预警记录失败:', error)
+                ElMessage.error('获取预警记录失败')
+            } finally {
+                loading.value = false
             }
-            
-            return result
-        })
-        
-        // 总条数
-        const totalItems = computed(() => filteredAlerts.value.length)
-        
-        // 分页后的数据
-        const paginatedAlerts = computed(() => {
-            const start = (currentPage.value - 1) * pageSize.value
-            const end = start + pageSize.value
-            return filteredAlerts.value.slice(start, end)
-        })
-        
-        // 分页处理函数
-        const handlePagination = ({page, limit}) => {
-            currentPage.value = page
-            pageSize.value = limit
-            console.log('currentPage:', currentPage.value, 'pageSize:', pageSize.value)
         }
         
         // 查看详情
-        const handleView = (row) => {
-            // 更新状态为已读
-            row.isRead = true;
-            
-            // 显示消息提示
-            ElMessage.success(`已知晓预警: ${row.alertContent}`)
-            
-            // 在实际应用中，这里应该调用API更新预警状态
-            // 例如：updateAlertStatus(row.id, true)
+        const handleView = async (row) => {
+            try {
+                const response = await updateAlertStatus(row.alertId)
+                if (response.code === 200) {
+                    row.isRead = true
+                    ElMessage.success('已更新预警状态')
+                } else {
+                    ElMessage.error(response.message || '更新预警状态失败')
+                }
+            } catch (error) {
+                console.error('更新预警状态失败:', error)
+                ElMessage.error('更新预警状态失败')
+            }
         }
         
         // 刷新数据
         const refreshData = () => {
-            loading.value = true
-            setTimeout(() => {
-                loading.value = false
-                ElMessage.success('数据已刷新')
-            }, 1000)
+            loadAlertRecords()
+        }
+        
+        // 分页处理
+        const handlePagination = ({page, limit}) => {
+            currentPage.value = page
+            pageSize.value = limit
+            loadAlertRecords()
         }
         
         // 初始化
         onMounted(() => {
-            // 这里可以添加初始化逻辑，例如从API获取数据
+            loadBaseOptions()
+            loadAlertRecords()
         })
         
         return {
@@ -194,8 +186,6 @@ export default {
             dateRange,
             alertRecords,
             loading,
-            filteredAlerts,
-            paginatedAlerts,
             totalItems,
             currentPage,
             pageSize,
