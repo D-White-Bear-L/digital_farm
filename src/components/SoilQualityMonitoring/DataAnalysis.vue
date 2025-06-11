@@ -159,7 +159,7 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import PageBar from '@/components/PageBar.vue'
 import { getSoilTrendAnalysis, getSoilMicroAnalysis, getBaseOptions } from '@/api/DataAnalysis'
-import { getMonitoringPointOptions } from '@/api/Monitoring'
+import { getMonitoringPointOptions } from '@/api/SoilQuality'
 
 export default {
   name: 'DataAnalysis',
