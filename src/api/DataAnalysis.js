@@ -42,5 +42,21 @@ export function getSoilQualityAnalysis(params) {
     })
 }
 
+// 导出数据接口
+export function exportData(params) {
+    return request({
+        url: '/api/dataAnalysis/export',
+        method: 'get',
+        params: {
+            ...params,
+            baseId: params.baseId || null,
+            pointId: params.pointId || null,
+            startDate: params.startDate || null,
+            endDate: params.endDate || null,
+            type: params.type || null
+        },
+        responseType: 'blob' // 告诉axios这是一个二进制流响应
+    })
+}
 
 export { getBaseOptions }

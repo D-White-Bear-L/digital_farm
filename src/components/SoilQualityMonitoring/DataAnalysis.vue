@@ -34,7 +34,7 @@
         <el-icon><Search /></el-icon>
         查询
       </el-button>
-      <el-button type="success" @click="exportData" class="filter-item">
+      <el-button type="success" @click="handleExportData" class="filter-item">
         <el-icon><Download /></el-icon>
         导出数据
       </el-button>
@@ -52,6 +52,7 @@
         <el-tab-pane label="有效磷" name="availableP"></el-tab-pane>
         <el-tab-pane label="速效钾" name="availableK"></el-tab-pane>
         <el-tab-pane label="电导率" name="conductivity"></el-tab-pane>
+        <el-tab-pane label="土壤质量" name="soilQuality"></el-tab-pane>
       </el-tabs>
     </div>
     
@@ -74,13 +75,58 @@
         </el-radio-group>
       </div>
       
+      <!-- 土壤质量评估展示 -->
+      <div v-if="activeTab === 'soilQuality'" class="soil-quality-assessment">
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-card class="quality-score-card">
+              <template #header>
+                <div class="card-header">
+                  <span>土壤质量评分</span>
+                </div>
+              </template>
+              <div class="score-content">
+                <div class="score-value">{{ soilQualityData.qualityScore?.toFixed(2) || 0 }}<span class="percentage-symbol">%</span></div>
+                <div class="original-score-value">原始分: {{ soilQualityData.originalQualityScore?.toFixed(2) || 0 }}</div>
+                <div class="score-level">
+                  <el-tag :type="getQualityLevelType(soilQualityData.qualityLevel)">
+                    {{ soilQualityData.qualityLevel || '未知' }}
+                  </el-tag>
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="16">
+            <el-card class="recommendations-card">
+              <template #header>
+                <div class="card-header">
+                  <span>改善建议</span>
+                </div>
+              </template>
+              <div class="recommendations-content">
+                <el-timeline>
+                  <el-timeline-item
+                    v-for="(recommendation, index) in soilQualityData.recommendations"
+                    :key="index"
+                    :type="getRecommendationType(recommendation)"
+                    :timestamp="'建议 ' + (index + 1)"
+                  >
+                    {{ recommendation }}
+                  </el-timeline-item>
+                </el-timeline>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
+      
       <!-- 图表区域 -->
-      <div class="chart-wrapper">
+      <div class="chart-wrapper" v-if="activeTab !== 'soilQuality'">
         <div id="mainChart" class="chart"></div>
       </div>
       
       <!-- 数据统计信息 -->
-      <div class="statistics-info">
+      <div class="statistics-info" v-if="activeTab !== 'soilQuality'">
         <el-card class="stat-card">
           <template #header>
             <div class="card-header">
@@ -103,6 +149,14 @@
             <div class="stat-item">
               <span class="stat-label">标准差：</span>
               <span class="stat-value">{{ statistics.stdDev }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">数据点数：</span>
+              <span class="stat-value">{{ statistics.count }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">变异系数：</span>
+              <span class="stat-value">{{ statistics.cv }}</span>
             </div>
           </div>
         </el-card>
@@ -158,8 +212,11 @@ import { Search, ArrowUp, ArrowDown, More, Download } from '@element-plus/icons-
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import PageBar from '@/components/PageBar.vue'
-import { getSoilTrendAnalysis, getSoilMicroAnalysis, getBaseOptions } from '@/api/DataAnalysis'
+// eslint-disable-next-line no-unused-vars
+import { getSoilTrendAnalysis, getSoilMicroAnalysis, getSoilQualityAnalysis, exportData, getBaseOptions } from '@/api/DataAnalysis'
 import { getMonitoringPointOptions } from '@/api/SoilQuality'
+// eslint-disable-next-line no-unused-vars
+import { getMonitoringPointsByBaseId } from '@/api/Monitoring'
 
 export default {
   name: 'DataAnalysis',
@@ -194,24 +251,28 @@ export default {
         ElMessage.error('获取基地列表失败')
       }
     }
-
-    // 加载所有监测点列表
-    const loadAllMonitoringPoints = async () => {
+    
+    // 根据基地ID加载监测点
+    const updateMonitoringPoints = async () => {
       try {
-        const response = await getMonitoringPointOptions()
-        console.log('所有监测点原始数据:', response)
-        
-        if (response.code === 200 && Array.isArray(response.data)) {
-          allMonitoringPoints.value = response.data
+        let response;
+        if (selectedBase.value) {
+          response = await getMonitoringPointsByBaseId(selectedBase.value);
         } else {
-          console.error('所有监测点数据格式不正确:', response)
-          ElMessage.error('获取所有监测点列表失败')
+          response = await getMonitoringPointOptions();
+        }
+        
+        if (response.code === 200 && Array.isArray(response.data.list)) {
+          allMonitoringPoints.value = response.data.list;
+        } else {
+          console.error('获取监测点列表失败或数据格式不正确:', response);
+          ElMessage.error('获取监测点列表失败');
         }
       } catch (error) {
-        console.error('获取所有监测点列表失败:', error)
-        ElMessage.error('获取所有监测点列表失败')
+        console.error('加载监测点列表失败:', error);
+        ElMessage.error('加载监测点列表失败');
       }
-    }
+    };
     
     // 筛选条件
     const selectedBase = ref('')
@@ -231,7 +292,9 @@ export default {
       max: 0,
       min: 0,
       avg: 0,
-      stdDev: 0
+      stdDev: 0,
+      count: 0,
+      cv: 0
     })
     
     // 表格数据
@@ -242,8 +305,8 @@ export default {
       'ph': 'ph',
       'moisture': 'waterContent',
       'organicMatter': 'organicMatter',
-      'salinity': 'conductivity', // 假设盐分对应电导率
-      'sulfurNitrogen': 'availableN', // 假设硫态氮对应有效氮
+      'salinity': 'conductivity',
+      'sulfurNitrogen': 'availableN',
       'availableP': 'availableP',
       'availableK': 'availableK',
       'conductivity': 'conductivity'
@@ -264,10 +327,39 @@ export default {
       '钙': 'ca'
     }
 
+    // 添加土壤质量数据
+    const soilQualityData = ref({
+      qualityScore: 0,
+      originalQualityScore: 0,
+      qualityLevel: '',
+      recommendations: []
+    })
+
+    // 获取质量等级类型
+    const getQualityLevelType = (level) => {
+      switch (level) {
+        case '优': return 'success'
+        case '良': return 'success'
+        case '中': return 'warning'
+        case '及格': return 'warning'
+        case '差': return 'danger'
+        default: return 'info'
+      }
+    }
+
+    // 获取建议类型
+    const getRecommendationType = (recommendation) => {
+      if (recommendation.includes('偏低')) return 'warning'
+      if (recommendation.includes('偏高')) return 'danger'
+      return 'info'
+    }
+
     // 加载数据
     const loadData = async () => {
+      console.time('loadData execution')
       try {
-        let response
+        let response = null;
+        let data = null;
         
         // 根据 monitoringPointName 查找对应的 pointId
         let pointIdToSend = null;
@@ -295,101 +387,92 @@ export default {
 
         console.log('请求参数:', params)
 
-        // 设置用于前端显示的监测点名称
-        if (pointIdToSend !== null) {
-          const resolvedPoint = allMonitoringPoints.value.find(p => p.pointId === pointIdToSend);
-          currentDisplayPointName.value = resolvedPoint ? resolvedPoint.pointName : '所有监测点';
-        } else if (monitoringPointName.value) { 
-          currentDisplayPointName.value = monitoringPointName.value; 
-        } else { 
-          currentDisplayPointName.value = '所有监测点';
-        }
-
-        let apiCallName = '';
         if (activeTab.value === 'microElements') {
-          response = await getSoilMicroAnalysis(params)
-          apiCallName = 'getSoilMicroAnalysis';
-        } else {
-          response = await getSoilTrendAnalysis(params)
-          apiCallName = 'getSoilTrendAnalysis';
-        }
+          // 微量元素现在也请求趋势数据
+          const backendElementKey = elementMap[selectedElement.value];
+          if (backendElementKey) {
+            response = await getSoilTrendAnalysis({ ...params, paramName: backendElementKey });
+            data = response; // Assuming trendAnalysis returns raw data
+            console.log(`原始响应数据 (${selectedElement.value} 趋势):`, data);
 
-        console.log(`完整的API响应对象 (来自 ${apiCallName}):`, response)
-
-        // 额外的独立测试，查看 getSoilMicroAnalysis 真实返回
-        if (activeTab.value === 'microElements') {
-            const testMicroResponse = await getSoilMicroAnalysis(params);
-            console.log('独立测试 - getSoilMicroAnalysis 返回:', testMicroResponse);
-        }
-
-        // 根据请求类型处理响应
-        const isMicroOrTrendTab = activeTab.value === 'microElements' || (activeTab.value in trendKeyMap)
-        console.log('当前 activeTab:', activeTab.value, '是否为微量元素或趋势标签:', isMicroOrTrendTab)
-
-        if (isMicroOrTrendTab) {
-          // 对于趋势和微量元素接口，后端直接返回数据，没有code/message封装
-          const data = response // 直接使用 response 作为数据负载
-          console.log('原始响应数据 (直接负载 - response):', data)
-
-          // 更新图表数据
-          if (activeTab.value === 'microElements') {
-            const microData = data || {}
-            console.log('处理微量元素数据 - microData:', microData)
-            
-            tableData.value = Object.entries(microData).map(([key, value]) => {
-              const elementDisplayName = Object.entries(elementMap).find(([, v]) => v === key)?.[0] || key
-              console.log('映射微量元素项 - key:', key, 'value:', value, 'displayName:', elementDisplayName)
+            const values = data[backendElementKey] || [];
+            tableData.value = (data.dates || []).map((date, index) => {
+              const itemValue = values[index];
               return {
                 base: selectedBase.value,
-                monitoringPoint: currentDisplayPointName.value, // 使用统一的显示名称
-                sampleDate: new Date().toISOString().split('T')[0],
-                element: elementDisplayName,
-                value: value,
-                status: getStatusByValue(key, value),
-                trend: '稳定'
-              }
-            })
-          } else {
-            const trendData = data || {}
-            const backendKey = trendKeyMap[activeTab.value]
-            console.log('处理趋势数据 - trendData:', trendData, '后端键名:', backendKey)
-            const values = trendData[backendKey] || []
-            console.log('处理趋势数据 - values (后端键名对应的值数组):', values)
-            
-            tableData.value = (trendData.dates || []).map((date, index) => {
-              const itemValue = values[index]
-              console.log('映射趋势数据项 - date:', date, 'index:', index, 'value:', itemValue)
-              return {
-                base: selectedBase.value,
-                monitoringPoint: currentDisplayPointName.value, // 使用统一的显示名称
+                monitoringPoint: currentDisplayPointName.value,
                 sampleDate: date,
                 value: itemValue,
-                status: getStatusByValue(activeTab.value, itemValue),
+                status: getStatusByValue(backendElementKey, itemValue),
                 trend: getTrendByValue(itemValue, index > 0 ? values[index - 1] : null)
-              }
-            })
+              };
+            });
+            updateStatistics();
+            updateChart();
+          } else {
+            console.warn('未知的微量元素选择:', selectedElement.value);
+            tableData.value = [];
+            updateStatistics();
+            updateChart();
           }
+        } else if (activeTab.value in trendKeyMap) {
+          response = await getSoilTrendAnalysis({ ...params, paramName: trendKeyMap[activeTab.value] }); // Pass paramName here
+          data = response; // Assuming trendAnalysis returns raw data
+          console.log('原始响应数据 (趋势分析):', data);
 
-          console.log('处理后的表格数据 (tableData.value):', tableData.value)
+          // Process trend data for table and chart
+          const trendData = data || {};
+          const backendKey = trendKeyMap[activeTab.value];
+          const values = trendData[backendKey] || [];
+          tableData.value = (trendData.dates || []).map((date, index) => {
+            const itemValue = values[index];
+            return {
+              base: selectedBase.value,
+              monitoringPoint: currentDisplayPointName.value,
+              sampleDate: date,
+              value: itemValue,
+              status: getStatusByValue(activeTab.value, itemValue),
+              trend: getTrendByValue(itemValue, index > 0 ? values[index - 1] : null)
+            };
+          });
+          updateStatistics();
+          updateChart();
+        } else if (activeTab.value === 'soilQuality') {
+          console.log('请求土壤质量评估，参数:', params);
+          response = await getSoilQualityAnalysis({ baseId: params.baseId });
+          console.log('完整的API响应对象 (土壤质量评估):', response);
 
-          updateStatistics()
-          updateChart()
-
-        } else if (response.data && response.data.code === 200) {
-          // 这个分支主要用于处理像基地选项那样有封装 code/message 的响应
-          const data = response.data.data 
-          console.log('原始响应数据 (封装格式 - response.data.data):', data)
-          ElMessage.error(response.data?.message || '未识别的封装响应格式或获取数据失败')
-          console.error('API错误或未识别的封装响应:', response)
-
-        } else {
-          // 处理其他没有 code 或 data 的非预期响应
-          ElMessage.error(response.data?.message || '获取数据失败: 未知响应格式') 
-          console.error('API错误: 未知响应格式', response)
+          // 直接检查 response 是否有数据，因为后端直接返回 Map
+          if (response && response.qualityScore !== undefined) {
+             console.log('土壤质量评估成功，数据:', response); // 直接打印 response
+             soilQualityData.value = {
+              qualityScore: response.qualityScore || 0,
+              originalQualityScore: response.originalQualityScore || 0,
+              qualityLevel: response.qualityLevel || '未知',
+              recommendations: response.recommendations || []
+            };
+            ElMessage.success('获取土壤质量评估数据成功！');
+          } else {
+            console.error('获取土壤质量评估失败，响应:', response);
+            ElMessage.error(response.message || '获取土壤质量评估数据失败');
+          }
+        } else { // 任何其他未知情况或错误处理
+            ElMessage.error('获取数据失败: 未知标签或响应格式');
+            console.error('API错误: 未知标签或响应格式', response);
+            tableData.value = [];
+            if (chartInstance) {
+              chartInstance.clear();
+              chartInstance.dispose();
+              chartInstance = null;
+              initChart();
+            }
         }
+
       } catch (error) {
         console.error('加载数据失败 (捕获到异常):', error)
         ElMessage.error('加载数据失败: ' + (error.message || '未知错误'))
+      } finally {
+        console.timeEnd('loadData execution')
       }
     }
 
@@ -445,6 +528,8 @@ export default {
         statistics.min = 0
         statistics.avg = 0
         statistics.stdDev = 0
+        statistics.count = 0
+        statistics.cv = 0
         return
       }
       
@@ -457,6 +542,8 @@ export default {
       
       const variance = values.reduce((acc, val) => acc + Math.pow(val - statistics.avg, 2), 0) / values.length
       statistics.stdDev = Math.sqrt(variance).toFixed(2)
+      statistics.count = values.length
+      statistics.cv = (statistics.stdDev / statistics.avg * 100).toFixed(2)
     }
     
     // 初始化图表
@@ -518,82 +605,46 @@ export default {
         series: series
       };
 
-      if (activeTab.value === 'microElements') {
-        // 处理微量元素数据：显示所有微量元素的柱状图
-        if (tableData.value.length > 0) {
-          const elementNames = tableData.value.map(item => item.element);
-          const values = tableData.value.map(item => item.value);
-          
-          series.push({
-            name: '含量',
-            type: 'bar',
-            data: values,
-            itemStyle: {
-              color: '#83bff6'
+      // 统一处理趋势数据：显示当前指标的折线图 (包括微量元素趋势)
+      const dates = tableData.value.map(item => item.sampleDate);
+      const values = tableData.value.map(item => item.value);
+      
+      series.push({
+        name: getValueLabel(),
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        data: values,
+        itemStyle: {
+          color: '#83bff6'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            {
+              offset: 0,
+              color: 'rgba(131, 191, 246, 0.8)'
             },
-            label: {
-              show: true,
-              position: 'top',
-              formatter: '{c}'
+            {
+              offset: 1,
+              color: 'rgba(131, 191, 246, 0.1)'
             }
-          });
-          legendData.push('含量');
-
-          option.xAxis = {
-            type: 'category',
-            data: elementNames,
-          axisLabel: {
-              interval: 0,
-              rotate: 30
-            }
-          };
-          option.yAxis = {
-          type: 'value',
-            name: getValueUnit()
-          };
+          ])
         }
-      } else {
-        // 处理趋势数据：显示当前指标的折线图
-        const dates = tableData.value.map(item => item.sampleDate);
-        const values = tableData.value.map(item => item.value);
-        
-        series.push({
-          name: getValueLabel(),
-          type: 'line',
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 6,
-          data: values,
-          itemStyle: {
-            color: '#83bff6'
-          },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              {
-                offset: 0,
-                color: 'rgba(131, 191, 246, 0.8)'
-              },
-              {
-                offset: 1,
-                color: 'rgba(131, 191, 246, 0.1)'
-              }
-            ])
-          }
-        });
-        legendData.push(getValueLabel());
+      });
+      legendData.push(getValueLabel());
 
-        option.xAxis = {
-          type: 'category',
-          data: dates,
-          axisLabel: {
-            formatter: (value) => value.split('-').slice(1).join('-')
-          }
-        };
-        option.yAxis = {
-          type: 'value',
-          name: getValueUnit()
-        };
-      }
+      option.xAxis = {
+        type: 'category',
+        data: dates,
+        axisLabel: {
+          formatter: (value) => value.split('-').slice(1).join('-')
+        }
+      };
+      option.yAxis = {
+        type: 'value',
+        name: getValueUnit()
+      };
       
       console.log('图表系列数据:', series);
       console.log('最终图表选项:', option); // 更改日志，更清晰
@@ -696,22 +747,70 @@ export default {
     }
     
     // 导出数据
-    const exportData = () => {
-      ElMessage.success('数据导出成功')
+    const handleExportData = async () => {
+      try {
+        // 根据 monitoringPointName 查找对应的 pointId
+        let pointIdToSend = null;
+        if (monitoringPointName.value) {
+          const matchedPoint = allMonitoringPoints.value.find(point => 
+            point.pointName === monitoringPointName.value
+          );
+          if (matchedPoint) {
+            pointIdToSend = matchedPoint.pointId;
+          }
+        }
+
+        // 构建查询参数
+        const params = {
+          baseId: selectedBase.value || null,
+          pointId: pointIdToSend || null,
+          startDate: dateRange.value?.[0] || null,
+          endDate: dateRange.value?.[1] || null,
+          type: activeTab.value === 'microElements' ? 'micro' : activeTab.value
+        };
+
+        // 发起导出请求
+        const response = await exportData(params); // 调用api中的exportData函数
+
+        // 获取文件名
+        const contentDisposition = response.headers['content-disposition'];
+        let filename = 'soil_analysis.csv';
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].replace(/['"]/g, '');
+          }
+        }
+
+        // 下载文件
+        const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        ElMessage.success('数据导出成功');
+      } catch (error) {
+        console.error('导出数据失败:', error);
+        ElMessage.error('导出失败: ' + (error.message || '未知错误'));
+      }
     }
     
     // 监听筛选条件变化
     watch([selectedBase, monitoringPointName, activeTab, selectedElement, dateRange], () => {
-      if (selectedBase.value || monitoringPointName.value || dateRange.value?.length === 2) {
-        loadData()
-      }
-    }, { deep: true })
+      // 移除条件判断，直接调用 loadData
+      loadData();
+    }, { deep: true, immediate: true }) // immediate: true 确保在组件挂载时也执行一次监听器
     
     // 组件挂载后加载数据
     onMounted(() => {
       initChart()
       loadBaseOptions() // 加载基地选项
-      loadAllMonitoringPoints() // 加载所有监测点列表
+      updateMonitoringPoints() // 使用新的函数加载监测点
       loadData()
       
       // 监听窗口大小变化，调整图表大小
@@ -733,17 +832,21 @@ export default {
       total,
       tableData,
       statistics,
+      soilQualityData,
       handleSearch,
       handleTabChange,
       handleSizeChange,
       handleCurrentChange,
       handlePagination,
-      exportData,
+      handleExportData,
       updateChart,
       getValueLabel,
       getStatusType,
       getTrendType,
-      loadData
+      getQualityLevelType,
+      getRecommendationType,
+      loadData,
+      updateMonitoringPoints
     }
   }
 }
@@ -969,5 +1072,80 @@ export default {
 :deep(.el-pagination) {
   margin-top: 20px;
   justify-content: flex-end;
+}
+
+.soil-quality-assessment {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.quality-score-card {
+  height: 100%;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.quality-score-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.score-content {
+  padding: 20px;
+  text-align: center;
+}
+
+.score-value {
+  font-size: 48px;
+  font-weight: bold;
+  color: #409EFF;
+  margin-bottom: 16px;
+}
+
+.percentage-symbol {
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.original-score-value {
+  font-size: 14px;
+  font-weight: normal;
+  color: #909399;
+}
+
+.score-level {
+  margin-top: 16px;
+}
+
+.recommendations-card {
+  height: 100%;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.recommendations-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.recommendations-content {
+  padding: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+:deep(.el-timeline-item__content) {
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+:deep(.el-timeline-item__timestamp) {
+  color: #909399;
+  font-size: 12px;
 }
 </style>
