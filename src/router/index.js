@@ -66,12 +66,17 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   
-  if (to.meta.requiresAuth && !token) {
+  // 如果尝试访问 /login 并且已经登录，则重定向到首页
+  if (to.path === '/login' && token) {
+    next('/')
+  }
+  // 如果尝试访问非 /login 页面且未登录，则重定向到登录页
+  else if (to.path !== '/login' && !token) {
     ElMessage.warning('请先登录')
     next('/login')
-  } else if (to.path === '/login' && token) {
-    next('/')
-  } else {
+  }
+  // 其他情况（已登录访问非 /login 页面，或未登录访问 /login 页面），允许导航
+  else {
     next()
   }
 })

@@ -66,13 +66,13 @@
     <div class="area-boundary"></div>
 
     <!-- 只在未打开设备管理面板时显示“设备管理”按钮 -->
-    <button
+    <!-- <button
       v-if="!showDevicesManage"
       class="devices-manage-toggle"
       @click="showDevicesManage = true"
     >
       设备管理
-    </button>
+    </button> -->
 
     <!-- 设备管理面板（可显示/隐藏）-->
     <DevicesManage
