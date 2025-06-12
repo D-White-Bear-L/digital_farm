@@ -71,7 +71,7 @@
       <div class="profile-footer">
         <div class="user-stats">
           <div class="stat-item">
-            <div class="stat-value">{{ userInfo.role === 'admin' ? '管理员' : userInfo.role === 'manager' ? '管理人员' : '操作员' }}</div>
+            <div class="stat-value">{{ userInfo.role === 'admin' ? '超级管理员' : userInfo.role === 'manager' ? '管理人员' : '用户' }}</div>
             <div class="stat-label">角色</div>
           </div>
           <div class="stat-item">
@@ -483,6 +483,12 @@ export default {
       formData.append('file', file)
       formData.append('userId', userInfo.userId)
       
+      // Add console.log to inspect formData before sending
+      for (let pair of formData.entries()) {
+          console.log(pair[0]+ ', ' + pair[1]); 
+      }
+      console.log('Sending avatar upload request with formData:', formData);
+
       try {
         const response = await uploadUserAvatar(formData)
         if (response.code === 200) {
@@ -500,8 +506,10 @@ export default {
     // 修改密码
     const changePassword = () => {
       passwordFormRef.value.validate(async (valid) => {
+        console.log('Password form validation result:', valid);
         if (valid) {
           submitting.value = true
+          console.log('Submitting password change with form data:', JSON.parse(JSON.stringify(passwordForm)));
           try {
             const response = await updatePassword({
               userId: userInfo.userId,
