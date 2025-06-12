@@ -76,7 +76,7 @@
           </div>
           <div class="stat-item">
             <div class="stat-value">{{ formatDate(userInfo.lastLogin) }}</div>
-            <div class="stat-label">最后登录</div>
+            <div class="stat-label">最近登录</div>
           </div>
           <div class="stat-item">
             <div class="stat-value">{{ formatDate(userInfo.createTime) }}</div>
@@ -411,6 +411,7 @@ export default {
         const response = await fetchUserInfo()
         if (response.code === 200) {
           console.log('Fetched User Info:', response.data);
+          console.log('Last Login Time:', response.data.lastLogin);
           Object.assign(userInfo, {
             userId: response.data.userId,
             username: response.data.username,
@@ -601,7 +602,38 @@ export default {
     // 格式化日期
     const formatDate = (dateStr) => {
       if (!dateStr) return '未知'
-      return dateStr.replace('T', ' ').substring(0, 19)
+      try {
+        if (typeof dateStr === 'string') {
+          // 处理ISO格式的日期字符串
+          if (dateStr.includes('T')) {
+            return dateStr.replace('T', ' ').substring(0, 19)
+          }
+          // 处理其他格式的日期字符串
+          return new Date(dateStr).toLocaleString('zh-CN', {
+            year: 'numeric',//年：显示完整的年份，例如：2025
+            month: '2-digit', //月：显示两位数的月份，例如：06
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit', // 不使用12h制
+          })
+        }
+        if (dateStr instanceof Date) {
+          return dateStr.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          })
+        }
+        return '未知'
+      } catch (error) {
+        console.error('Date formatting error:', error)
+        return '未知'
+      }
     }
     
     // 手机号码脱敏
