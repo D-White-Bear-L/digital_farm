@@ -10,7 +10,7 @@
       
       <div class="profile-content">
         <div class="avatar-section">
-          <el-avatar :size="100" :src="userInfo.avatar_url || defaultAvatar"></el-avatar>
+          <el-avatar :size="100" :src="userInfo.avatarUrl || defaultAvatar"></el-avatar>
           <div v-if="isEditing" class="avatar-upload">
             <el-upload
               class="avatar-uploader"
@@ -30,7 +30,7 @@
             </el-form-item>
             
             <el-form-item label="真实姓名">
-              <el-input v-model="userInfo.real_name"></el-input>
+              <el-input v-model="userInfo.realName"></el-input>
             </el-form-item>
             
             <el-form-item label="性别">
@@ -75,11 +75,11 @@
             <div class="stat-label">角色</div>
           </div>
           <div class="stat-item">
-            <div class="stat-value">{{ formatDate(userInfo.last_login) }}</div>
+            <div class="stat-value">{{ formatDate(userInfo.lastLogin) }}</div>
             <div class="stat-label">最后登录</div>
           </div>
           <div class="stat-item">
-            <div class="stat-value">{{ formatDate(userInfo.create_time) }}</div>
+            <div class="stat-value">{{ formatDate(userInfo.createTime) }}</div>
             <div class="stat-label">注册时间</div>
           </div>
         </div>
@@ -98,7 +98,7 @@
           </div>
           <div class="security-item-desc">
             <span>定期修改密码可以提高账号安全性</span>
-            <el-tag size="small" type="info">上次修改: {{ formatDate(userInfo.password_updated_at || userInfo.create_time) }}</el-tag>
+            <el-tag size="small" type="info">上次修改: {{ formatDate(userInfo.passwordUpdatedAt || userInfo.createTime) }}</el-tag>
           </div>
           <i class="el-icon-arrow-right"></i>
         </div>
@@ -191,17 +191,17 @@
     <!-- 登录历史对话框 -->
     <el-dialog title="登录历史" v-model="showLoginHistoryDialog" width="600px" @open="loadLoginHistory">
       <el-table v-if="loginHistoryLoaded" :data="loginHistory" style="width: 100%" max-height="400">
-        <el-table-column prop="login_time" label="登录时间" width="180"></el-table-column>
-        <el-table-column prop="login_ip" label="登录IP" width="140"></el-table-column>
-        <el-table-column prop="login_location" label="登录地点"></el-table-column>
-        <el-table-column prop="login_device" label="登录设备"></el-table-column>
-        <el-table-column prop="login_status" label="状态" width="80">
+        <el-table-column prop="loginIp" label="登录IP" width="140"></el-table-column>
+        <el-table-column prop="loginLocation" label="登录地点"></el-table-column>
+        <el-table-column prop="loginDevice" label="登录设备"></el-table-column>
+        <el-table-column prop="loginStatus" label="状态" width="80">
           <template #default="scope">
-            <el-tag :type="scope.row.login_status === 'success' ? 'success' : 'danger'">
-              {{ scope.row.login_status === 'success' ? '成功' : '失败' }}
+            <el-tag :type="scope.row.loginStatus === 'success' ? 'success' : 'danger'">
+              {{ scope.row.loginStatus === 'success' ? '成功' : '失败' }}
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="loginTime" label="登录时间" width="180"></el-table-column>
       </el-table>
       <div v-else class="loading-placeholder">
         <el-skeleton :rows="4" animated />
@@ -216,6 +216,15 @@
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { 
+  getUserInfo as fetchUserInfo, 
+  updateUserInfo, 
+  changePassword as updatePassword, 
+  sendVerificationCode as sendCode, 
+  bindPhone as bindUserPhone, 
+  uploadAvatar as uploadUserAvatar, 
+  getLoginHistory 
+} from '@/api/UserSetting'
 
 export default {
   name: 'UserProfile',
@@ -225,25 +234,25 @@ export default {
     
     // 用户信息
     const userInfo = reactive({
-      user_id: 1,
-      username: 'admin',
-      real_name: '管理员',
-      role: 'admin',
-      avatar_url: '',
-      gender: 'male',
+      userId: null,
+      username: '',
+      realName: '',
+      role: '',
+      avatarUrl: '',
+      gender: '',
       birthday: null,
-      department: '技术部',
-      position: '系统管理员',
-      phone: '13800138000',
-      email: 'admin@example.com',
-      address: '湛江市岭南师范学院',
-      bio: '数字农场系统管理员，负责系统维护和用户管理。',
-      last_login: '2025-06-09 14:30:00',
-      login_ip: '192.168.1.100',
-      status: 'active',
-      create_time: '2025-05-30 00:00:00',
-      update_time: '2025-06-08 14:30:00',
-      password_updated_at: '2025-06-05 10:25:00'
+      department: '',
+      position: '',
+      phone: '',
+      email: '',
+      address: '',
+      bio: '',
+      lastLogin: '',
+      loginIp: '',
+      status: '',
+      createTime: '',
+      updateTime: '',
+      passwordUpdatedAt: ''
     })
     
     // 编辑状态
@@ -279,42 +288,21 @@ export default {
     const loginHistoryLoaded = ref(false)
     
     // 加载登录历史数据
-    const loadLoginHistory = () => {
+    const loadLoginHistory = async () => {
       loginHistoryLoaded.value = false
-      // 模拟API调用延迟
-      setTimeout(() => {
-        loginHistory.value = [
-          {
-            login_time: '2023-05-20 14:30:00',
-            login_ip: '192.168.1.100',
-            login_location: '浙江省杭州市',
-            login_device: 'Chrome 98.0.4758.102 / Windows 10',
-            login_status: 'success'
-          },
-          {
-            login_time: '2023-05-18 09:15:22',
-            login_ip: '192.168.1.100',
-            login_location: '浙江省杭州市',
-            login_device: 'Chrome 98.0.4758.102 / Windows 10',
-            login_status: 'success'
-          },
-          {
-            login_time: '2023-05-15 16:42:10',
-            login_ip: '114.88.123.45',
-            login_location: '浙江省杭州市',
-            login_device: 'Safari / iOS 15.4',
-            login_status: 'success'
-          },
-          {
-            login_time: '2023-05-10 08:30:45',
-            login_ip: '220.181.38.148',
-            login_location: '北京市',
-            login_device: 'Unknown',
-            login_status: 'failed'
-          }
-        ]
+      try {
+        const response = await getLoginHistory(userInfo.userId)
+        if (response.code === 200) {
+          loginHistory.value = response.data
+        } else {
+          ElMessage.error(response.message || '获取登录历史失败')
+        }
+      } catch (error) {
+        console.error('获取登录历史失败:', error)
+        ElMessage.error('获取失败')
+      } finally {
         loginHistoryLoaded.value = true
-      }, 300)
+      }
     }
     
     // 密码表单验证规则
@@ -329,10 +317,10 @@ export default {
           validator: (rule, value, callback) => {
             const hasLetter = /[a-zA-Z]/.test(value)
             const hasNumber = /\d/.test(value)
-            // const hasSpecialChar = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value)
+            const hasSpecialChar = /[!@#$%^&*()_+\-={};':"|,.<>/?]/.test(value)
             
-            if (!(hasLetter && hasNumber)) {
-              callback(new Error('密码必须包含字母和数字'))
+            if (!(hasLetter && hasNumber && hasSpecialChar)) {
+              callback(new Error('密码必须包含字母、数字和特殊字符'))
             } else {
               callback()
             }
@@ -385,7 +373,7 @@ export default {
       if (/[a-z]/.test(password)) strength += 1
       if (/[A-Z]/.test(password)) strength += 1
       if (/\d/.test(password)) strength += 1
-      if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) strength += 1
+      if (/[!@#$%^&*()_+\-={};':"|,.<>/?]/.test(password)) strength += 1
       
       return Math.min(strength, 5)
     })
@@ -417,14 +405,61 @@ export default {
       isEditing.value = !isEditing.value
     }
     
+    // 获取用户信息
+    const getUserInfo = async () => {
+      try {
+        const response = await fetchUserInfo()
+        if (response.code === 200) {
+          console.log('Fetched User Info:', response.data);
+          Object.assign(userInfo, {
+            userId: response.data.userId,
+            username: response.data.username,
+            realName: response.data.realName,
+            role: response.data.role,
+            avatarUrl: response.data.avatarUrl,
+            gender: response.data.gender,
+            birthday: response.data.birthday,
+            department: response.data.department,
+            position: response.data.position,
+            phone: response.data.phone,
+            email: response.data.email,
+            address: response.data.address,
+            bio: response.data.bio,
+            lastLogin: response.data.lastLogin,
+            loginIp: response.data.loginIp,
+            status: response.data.status,
+            createTime: response.data.createTime,
+            updateTime: response.data.updateTime,
+            passwordUpdatedAt: response.data.passwordUpdatedAt,
+          });
+        } else {
+          console.error('Error fetching user info:', response.message);
+          ElMessage.error(response.message || '获取用户信息失败')
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error)
+        ElMessage.error('获取用户信息失败')
+      }
+    }
+    
     // 保存用户信息
-    const saveUserInfo = () => {
+    const saveUserInfo = async () => {
       submitting.value = true
-      // 这里应该调用API保存用户信息
-      setTimeout(() => {
-        ElMessage.success('个人信息保存成功')
+      console.log('Sending userInfo to backend:', JSON.parse(JSON.stringify(userInfo)));
+      try {
+        const response = await updateUserInfo(userInfo)
+        if (response.code === 200) {
+          ElMessage.success('个人信息保存成功')
+          isEditing.value = false
+        } else {
+          ElMessage.error(response.message || '保存失败')
+        }
+      } catch (error) {
+        console.error('保存用户信息失败:', error)
+        ElMessage.error('保存失败')
+      } finally {
         submitting.value = false
-      }, 800)
+      }
     }
     
     // 上传头像前的验证
@@ -442,76 +477,115 @@ export default {
     }
     
     // 上传头像
-    const uploadAvatar = (options) => {
-      // 这里应该调用API上传头像到OSS
-      // 模拟上传成功
+    const uploadAvatar = async (options) => {
       const file = options.file
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => {
-        userInfo.avatar_url = reader.result
-        ElMessage.success('头像上传成功')
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('userId', userInfo.userId)
+      
+      try {
+        const response = await uploadUserAvatar(formData)
+        if (response.code === 200) {
+          userInfo.avatarUrl = response.data
+          ElMessage.success('头像上传成功')
+        } else {
+          ElMessage.error(response.message || '上传失败')
+        }
+      } catch (error) {
+        console.error('上传头像失败:', error)
+        ElMessage.error('上传失败')
       }
     }
     
     // 修改密码
     const changePassword = () => {
-      passwordFormRef.value.validate((valid) => {
+      passwordFormRef.value.validate(async (valid) => {
         if (valid) {
           submitting.value = true
-          // 这里应该调用API修改密码
-          setTimeout(() => {
-            ElMessage.success('密码修改成功，请重新登录')
+          try {
+            const response = await updatePassword({
+              userId: userInfo.userId,
+              oldPassword: passwordForm.oldPassword,
+              newPassword: passwordForm.newPassword
+            })
+            
+            if (response.code === 200) {
+              ElMessage.success('密码修改成功，请重新登录')
+              showPasswordDialog.value = false
+              userInfo.passwordUpdatedAt = new Date().toISOString().replace('T', ' ').substring(0, 19)
+              passwordForm.oldPassword = ''
+              passwordForm.newPassword = ''
+              passwordForm.confirmPassword = ''
+            } else {
+              ElMessage.error(response.message || '修改失败')
+            }
+          } catch (error) {
+            console.error('修改密码失败:', error)
+            ElMessage.error('修改失败')
+          } finally {
             submitting.value = false
-            showPasswordDialog.value = false
-            // 更新密码修改时间
-            userInfo.password_updated_at = new Date().toISOString().replace('T', ' ').substring(0, 19)
-            // 重置表单
-            passwordForm.oldPassword = ''
-            passwordForm.newPassword = ''
-            passwordForm.confirmPassword = ''
-          }, 1000)
+          }
         }
       })
     }
     
     // 发送验证码
-    const sendVerificationCode = () => {
-      phoneFormRef.value.validateField('phone', (valid) => {
+    const sendVerificationCode = async () => {
+      phoneFormRef.value.validateField('phone', async (valid) => {
         if (!valid) {
-          // 验证手机号
           codeSending.value = true
-          // 这里应该调用API发送验证码
-          ElMessage.success(`验证码已发送至 ${maskPhone(phoneForm.phone)}`)
-          
-          // 倒计时
-          countdown.value = 60
-          const timer = setInterval(() => {
-            countdown.value--
-            if (countdown.value <= 0) {
-              clearInterval(timer)
+          try {
+            const response = await sendCode(phoneForm.phone)
+            if (response.code === 200) {
+              ElMessage.success(`验证码已发送至 ${maskPhone(phoneForm.phone)}`)
+              countdown.value = 60
+              const timer = setInterval(() => {
+                countdown.value--
+                if (countdown.value <= 0) {
+                  clearInterval(timer)
+                  codeSending.value = false
+                }
+              }, 1000)
+            } else {
+              ElMessage.error(response.message || '发送失败')
               codeSending.value = false
             }
-          }, 1000)
+          } catch (error) {
+            console.error('发送验证码失败:', error)
+            ElMessage.error('发送失败')
+            codeSending.value = false
+          }
         }
       })
     }
     
     // 绑定手机
     const bindPhone = () => {
-      phoneFormRef.value.validate((valid) => {
+      phoneFormRef.value.validate(async (valid) => {
         if (valid) {
           submitting.value = true
-          // 这里应该调用API绑定手机
-          setTimeout(() => {
-            userInfo.phone = phoneForm.phone
-            ElMessage.success('手机绑定成功')
+          try {
+            const response = await bindUserPhone({
+              userId: userInfo.userId,
+              phone: phoneForm.phone,
+              code: phoneForm.code
+            })
+            
+            if (response.code === 200) {
+              userInfo.phone = phoneForm.phone
+              ElMessage.success('手机绑定成功')
+              showBindPhoneDialog.value = false
+              phoneForm.phone = ''
+              phoneForm.code = ''
+            } else {
+              ElMessage.error(response.message || '绑定失败')
+            }
+          } catch (error) {
+            console.error('绑定手机失败:', error)
+            ElMessage.error('绑定失败')
+          } finally {
             submitting.value = false
-            showBindPhoneDialog.value = false
-            // 重置表单
-            phoneForm.phone = ''
-            phoneForm.code = ''
-          }, 1000)
+          }
         }
       })
     }
@@ -526,15 +600,6 @@ export default {
     const maskPhone = (phone) => {
       if (!phone) return ''
       return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
-    }
-    
-    // 获取用户信息
-    const getUserInfo = () => {
-      // 这里应该调用API获取用户信息
-      // 模拟API调用
-      setTimeout(() => {
-        // 数据已经在reactive对象中初始化了
-      }, 500)
     }
     
     onMounted(() => {
