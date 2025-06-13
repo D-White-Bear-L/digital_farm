@@ -28,13 +28,13 @@
             <!-- 用户信息 -->
             <el-dropdown trigger="click">
                 <div class="user-info">
-                    <el-avatar :size="32" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
+                    <el-avatar :size="32" :src="userInfo.avatarUrl || defaultAvatar" />
                     <span class="username">{{ name }}</span>
                 </div>
                 <template #dropdown>
-                    <el-dropdown-menu>
+                    <el-dropdown-menu>/
                         <el-dropdown-item @click="navigateTo('/user')">个人信息</el-dropdown-item>
-                        <el-dropdown-item @click="navigateTo('/settings')">系统设置</el-dropdown-item>
+                        <!-- <el-dropdown-item @click="navigateTo('/settings')">系统设置</el-dropdown-item> -->
                         <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
                     </el-dropdown-menu>
                 </template>
@@ -44,9 +44,10 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Bell, FullScreen } from '@element-plus/icons-vue'
+import { fetchUserInfo } from '../api/UserSetting'
 
 export default {
     name: 'HeaderBar',
@@ -58,6 +59,23 @@ export default {
 
     },
     setup() {
+        const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
+        const userInfo = reactive({
+            avatarUrl:''
+        })
+        
+        // 获取用户信息
+        const getUserInfo = async () => {
+            try {
+                const response = await fetchUserInfo()
+                if (response.code === 200) {
+                    userInfo.avatarUrl = response.data.avatarUrl
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error)
+            }
+        }
+
         const searchText = ref('')
         const notificationCount = ref(5)
         const route = useRoute()
@@ -92,6 +110,10 @@ export default {
             }
         }
         
+        onMounted(() => {
+            getUserInfo()
+        })
+
         return {
             searchText,
             notificationCount,
@@ -99,7 +121,9 @@ export default {
             currentRoute,
             toggleFullScreen,
             navigateTo,
-            logout
+            logout,
+            userInfo,
+            defaultAvatar
         }
     }
 }

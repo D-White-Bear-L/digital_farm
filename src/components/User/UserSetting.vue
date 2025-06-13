@@ -125,6 +125,43 @@
           </div>
           <i class="el-icon-arrow-right"></i>
         </div> -->
+        
+        <div class="security-item" @click="showRoleRequestDialog = true" v-if="userInfo.role !== 'ADMIN'">
+          <div class="security-item-title">
+            <i class="el-icon-s-custom"></i>
+            <span>角色申请</span>
+          </div>
+          <div class="security-item-desc">
+            <span>{{ userInfo.role === 'USER' ? '申请成为管理员' : '申请其他角色' }}</span>
+            <el-tag size="small" type="info">当前角色: {{ getRoleName(userInfo.role) }}</el-tag>
+          </div>
+          <i class="el-icon-arrow-right"></i>
+        </div>
+        
+        <el-dialog title="角色申请" v-model="showRoleRequestDialog" width="400px" destroy-on-close>
+          <el-form :model="roleRequestForm" label-width="100px" :rules="roleRequestRules" ref="roleRequestFormRef">
+            <el-form-item label="当前角色">
+              <el-tag>{{ getRoleName(userInfo.role) }}</el-tag>
+            </el-form-item>
+            <el-form-item label="申请角色" prop="requestedRole">
+              <el-select v-model="roleRequestForm.requestedRole">
+                <el-option v-if="userInfo.role !== 'MANAGER'" label="管理员" value="MANAGER"></el-option>
+                <el-option v-if="userInfo.role !== 'ADMIN'" label="超级管理员" value="ADMIN"></el-option>
+                <el-option v-if="userInfo.role !== 'USER'" label="普通用户" value="USER"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="申请理由" prop="reason">
+              <el-input type="textarea" v-model="roleRequestForm.reason" rows="4" placeholder="请详细说明申请理由"></el-input>
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="showRoleRequestDialog = false">取消</el-button>
+              <el-button type="primary" @click="submitRoleRequest" :loading="submitting">提交申请</el-button>
+            </span>
+          </template>
+        </el-dialog>
+        
       </div>
     </el-card>
     
@@ -225,10 +262,60 @@ import {
   uploadAvatar as uploadUserAvatar, 
   getLoginHistory 
 } from '@/api/UserSetting'
+// 在script中添加相关方法
+import { submitRoleChangeRequest } from '@/api/RoleManagement'
 
 export default {
-  name: 'UserProfile',
+  name: 'UserSetting',
+
   setup() {
+    // 在setup中添加
+    const showRoleRequestDialog = ref(false)
+    const roleRequestForm = ref({
+      requestedRole: '',
+      reason: ''
+    })
+    const roleRequestRules = {
+      requestedRole: [
+        { required: true, message: '请选择申请角色', trigger: 'change' }
+      ],
+      reason: [
+        { required: true, message: '请填写申请理由', trigger: 'blur' },
+        { min: 10, message: '申请理由至少10个字符', trigger: 'blur' }
+      ]
+    }
+    
+    // 获取角色名称
+    const getRoleName = (role) => {
+      switch (role) {
+        case 'ADMIN':
+          return '超级管理员'
+        case 'MANAGER':
+          return '管理人员'
+        case 'USER':
+          return '普通用户'
+        default:
+          return '未知角色'
+      }
+    }
+    
+    // 提交角色申请
+    const submitRoleRequest = async () => {
+      // 实现角色申请逻辑
+      try {
+        // 调用后端API
+        const response = await submitRoleChangeRequest(roleRequestForm.value)
+        if (response.code === 200) {
+          ElMessage.success('申请已提交，请等待审核')
+          showRoleRequestDialog.value = false
+        } else {
+          ElMessage.error(response.message || '申请提交失败')
+        }
+      } catch (error) {
+        console.error('提交角色申请失败:', error)
+        ElMessage.error('申请提交失败，请稍后重试')
+      }
+    }
     // 默认头像
     const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
     
@@ -675,7 +762,10 @@ export default {
       passwordStrengthClass,
       passwordStrengthText,
       loginHistoryLoaded,
-      loadLoginHistory
+      loadLoginHistory,
+      roleRequestRules,
+      getRoleName,
+      submitRoleRequest
     }
   }
 }

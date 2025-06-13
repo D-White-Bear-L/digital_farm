@@ -230,6 +230,23 @@ CREATE TABLE SoilSampleFull (
 ) COMMENT='土壤样本完整表，包含基础指标与微量元素';
 ```
 
+### 11.角色变更请求表
+```sql
+CREATE TABLE role_change_request (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '角色变更请求ID，自增主键',
+  user_id INT NOT NULL COMMENT '申请用户ID，关联user表',
+  current_role VARCHAR(20) NOT NULL COMMENT '当前角色名称',
+  requested_role VARCHAR(20) NOT NULL COMMENT '请求变更的角色名称',
+  reason TEXT COMMENT '角色变更原因说明',
+  status VARCHAR(20) DEFAULT 'PENDING' COMMENT '请求状态：PENDING, APPROVED, REJECTED',
+  admin_id BIGINT COMMENT '审批管理员ID，关联user表',
+  admin_comment TEXT COMMENT '管理员审批意见',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+  FOREIGN KEY (user_id) REFERENCES user(user_id),
+  FOREIGN KEY (admin_id) REFERENCES user(user_id)
+) COMMENT='角色变更请求记录表';
+```
 
 ## 用户头像存储方案(后面可以改成OSS)
 对于用户头像的存储，有两种主要方案：
